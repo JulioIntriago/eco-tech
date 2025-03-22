@@ -1,5 +1,6 @@
 "use client"
-
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSidebar } from "./sidebar-provider"
@@ -19,6 +20,7 @@ import {
   Truck,
   Bell,
 } from "lucide-react"
+import router from "next/router"
 
 const sidebarLinks = [
   {
@@ -107,6 +109,8 @@ function SidebarContent({
   pathname: string
   isCollapsed?: boolean
 }) {
+  const router = useRouter() // ✅
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b px-3 py-4">
@@ -134,13 +138,20 @@ function SidebarContent({
         </nav>
       </div>
       <div className="mt-auto border-t p-2">
-        <Button
-          variant="ghost"
-          className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center px-0")}
-        >
-          <LogOut className="mr-2 h-5 w-5" />
-          {!isCollapsed && <span>Cerrar Sesión</span>}
-        </Button>
+      <Button
+  variant="ghost"
+  className={cn("w-full justify-start text-muted-foreground", isCollapsed && "justify-center px-0")}
+  onClick={async () => {
+    await supabase.auth.signOut()
+    router.push("/auth/login")
+  }}
+>
+  <LogOut className="mr-2 h-5 w-5" />
+  {!isCollapsed && <span>Cerrar Sesión</span>}
+</Button>
+
+
+
       </div>
     </div>
   )

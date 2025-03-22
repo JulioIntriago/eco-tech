@@ -46,7 +46,7 @@ export default function RegisterPage() {
           id: authData.user.id,
           nombre: name,
           correo: email,
-          rol: "vendedor", // Rol por defecto
+          rol: "admin", // Rol por defecto
         })
 
         if (profileError) throw profileError
