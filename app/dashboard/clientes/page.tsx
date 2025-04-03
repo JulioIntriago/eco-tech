@@ -102,7 +102,6 @@ export default function ClientesPage() {
                   <TableRow key={cliente.id}>
                     <TableCell>
                       <div className="font-medium">{cliente.nombre}</div>
-                      <div className="text-sm text-muted-foreground">{cliente.id}</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <div className="flex flex-col">

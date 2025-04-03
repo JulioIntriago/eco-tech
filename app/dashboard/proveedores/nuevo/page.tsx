@@ -1,16 +1,29 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase" // ✅ IMPORTANTE: esta línea faltaba
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft } from "lucide-react"
 
@@ -28,7 +41,9 @@ export default function NuevoProveedorPage() {
   })
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -48,16 +63,26 @@ export default function NuevoProveedorPage() {
     setLoading(true)
 
     try {
-      // Aquí iría la lógica para guardar en Supabase
-      console.log("Datos del proveedor:", formData)
+      const { error } = await supabase.from("proveedores").insert({
+        nombre: formData.nombre,
+        tipo: formData.tipo,
+        telefono: formData.telefono,
+        correo: formData.correo,
+        direccion: formData.direccion,
+        contacto_nombre: formData.contacto_nombre,
+        contacto_telefono: formData.contacto_telefono,
+        notas: formData.notas,
+        estado: "activo",
+        productos: 0,
+        ultima_compra: null,
+      })
 
-      // Simular tiempo de carga
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (error) throw error
 
-      // Redireccionar a la lista de proveedores
       router.push("/dashboard/proveedores")
     } catch (error) {
       console.error("Error al crear el proveedor:", error)
+      alert("Ocurrió un error al guardar el proveedor.")
     } finally {
       setLoading(false)
     }
@@ -88,7 +113,6 @@ export default function NuevoProveedorPage() {
                 <Input
                   id="nombre"
                   name="nombre"
-                  placeholder="Nombre de la empresa"
                   value={formData.nombre}
                   onChange={handleChange}
                   required
@@ -97,7 +121,10 @@ export default function NuevoProveedorPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo de Proveedor</Label>
-                <Select value={formData.tipo} onValueChange={(value) => handleSelectChange("tipo", value)} required>
+                <Select
+                  value={formData.tipo}
+                  onValueChange={(value) => handleSelectChange("tipo", value)}
+                >
                   <SelectTrigger id="tipo">
                     <SelectValue placeholder="Selecciona un tipo" />
                   </SelectTrigger>
@@ -120,7 +147,6 @@ export default function NuevoProveedorPage() {
                   <Input
                     id="telefono"
                     name="telefono"
-                    placeholder="Teléfono de la empresa"
                     value={formData.telefono}
                     onChange={handleChange}
                     required
@@ -132,7 +158,6 @@ export default function NuevoProveedorPage() {
                     id="correo"
                     name="correo"
                     type="email"
-                    placeholder="correo@empresa.com"
                     value={formData.correo}
                     onChange={handleChange}
                     required
@@ -145,7 +170,6 @@ export default function NuevoProveedorPage() {
                 <Input
                   id="direccion"
                   name="direccion"
-                  placeholder="Dirección completa"
                   value={formData.direccion}
                   onChange={handleChange}
                   required
@@ -158,7 +182,6 @@ export default function NuevoProveedorPage() {
                   <Input
                     id="contacto_nombre"
                     name="contacto_nombre"
-                    placeholder="Nombre de la persona de contacto"
                     value={formData.contacto_nombre}
                     onChange={handleChange}
                   />
@@ -168,7 +191,6 @@ export default function NuevoProveedorPage() {
                   <Input
                     id="contacto_telefono"
                     name="contacto_telefono"
-                    placeholder="Teléfono directo del contacto"
                     value={formData.contacto_telefono}
                     onChange={handleChange}
                   />
@@ -180,7 +202,6 @@ export default function NuevoProveedorPage() {
                 <Textarea
                   id="notas"
                   name="notas"
-                  placeholder="Información adicional relevante"
                   value={formData.notas}
                   onChange={handleChange}
                   rows={3}
@@ -201,4 +222,3 @@ export default function NuevoProveedorPage() {
     </div>
   )
 }
-

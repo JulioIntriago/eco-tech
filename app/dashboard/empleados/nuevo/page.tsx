@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -13,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 export default function NuevoEmpleadoPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     nombre: "",
-    cargo: "",
+    rol: "",
     telefono: "",
     correo: "",
     direccion: "",
@@ -47,16 +47,59 @@ export default function NuevoEmpleadoPage() {
     setLoading(true)
 
     try {
-      // Aquí iría la lógica para guardar en Supabase
-      console.log("Datos del empleado:", formData)
+      // Verificar si el empleado ya existe por correo
+      const { data: existente, error: errorBuscar } = await supabase
+        .from("empleados")
+        .select("id")
+        .eq("correo", formData.correo)
+        .maybeSingle()
 
-      // Simular tiempo de carga
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (errorBuscar) throw errorBuscar
 
-      // Redireccionar a la lista de empleados
+      if (existente) {
+        alert("Ya existe un empleado con este correo.")
+        setLoading(false)
+        return
+      }
+
+      // Insertar empleado
+      const { data: empleadoData, error: errorInsertar } = await supabase
+        .from("empleados")
+        .insert({
+          nombre: formData.nombre,
+          rol: formData.rol.toLowerCase(),
+          telefono: formData.telefono,
+          correo: formData.correo,
+          direccion: formData.direccion,
+          fecha_contratacion: formData.fecha_contratacion,
+          estado: "activo",
+          notas: formData.notas,
+        })
+        .select()
+        .single()
+
+      if (errorInsertar) throw errorInsertar
+
+      // Generar token de invitación
+      const token = crypto.randomUUID()
+
+      // Insertar invitación
+      await supabase.from("invitaciones").insert({
+        empleado_id: empleadoData.id,
+        correo: formData.correo,
+        nombre: formData.nombre, // ✅ campo requerido
+        token,
+        estado: "pendiente",
+      })
+      
+
+
+      // Notificación y redirección
+      alert("Empleado creado y invitación enviada con éxito.")
       router.push("/dashboard/empleados")
-    } catch (error) {
-      console.error("Error al crear el empleado:", error)
+    } catch (error: any) {
+      console.error("Error al crear el empleado:", error?.message || error)
+      alert(`Error al crear el empleado: ${error?.message || "Error desconocido"}`)
     } finally {
       setLoading(false)
     }
@@ -82,92 +125,35 @@ export default function NuevoEmpleadoPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre Completo</Label>
-                <Input
-                  id="nombre"
-                  name="nombre"
-                  placeholder="Nombre y apellidos"
-                  value={formData.nombre}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+              <Label htmlFor="nombre">Nombre Completo</Label>
+              <Input id="nombre" name="nombre" placeholder="Nombre y apellidos" value={formData.nombre} onChange={handleChange} required />
 
-              <div className="space-y-2">
-                <Label htmlFor="cargo">Cargo</Label>
-                <Select value={formData.cargo} onValueChange={(value) => handleSelectChange("cargo", value)} required>
-                  <SelectTrigger id="cargo">
-                    <SelectValue placeholder="Selecciona un cargo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Técnico">Técnico</SelectItem>
-                    <SelectItem value="Vendedor">Vendedor</SelectItem>
-                    <SelectItem value="Administrador">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label htmlFor="rol">Rol</Label>
+              <Select value={formData.rol} onValueChange={(value) => handleSelectChange("rol", value)} required>
+                <SelectTrigger id="rol">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tecnico">Técnico</SelectItem>
+                  <SelectItem value="vendedor">Vendedor</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
-                  <Input
-                    id="telefono"
-                    name="telefono"
-                    placeholder="Número de teléfono"
-                    value={formData.telefono}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="correo">Correo Electrónico</Label>
-                  <Input
-                    id="correo"
-                    name="correo"
-                    type="email"
-                    placeholder="correo@ejemplo.com"
-                    value={formData.correo}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+              <Label htmlFor="telefono">Teléfono</Label>
+              <Input id="telefono" name="telefono" placeholder="Número de teléfono" value={formData.telefono} onChange={handleChange} required />
 
-              <div className="space-y-2">
-                <Label htmlFor="direccion">Dirección</Label>
-                <Input
-                  id="direccion"
-                  name="direccion"
-                  placeholder="Dirección completa"
-                  value={formData.direccion}
-                  onChange={handleChange}
-                />
-              </div>
+              <Label htmlFor="correo">Correo Electrónico</Label>
+              <Input id="correo" name="correo" type="email" placeholder="correo@ejemplo.com" value={formData.correo} onChange={handleChange} required />
 
-              <div className="space-y-2">
-                <Label htmlFor="fecha_contratacion">Fecha de Contratación</Label>
-                <Input
-                  id="fecha_contratacion"
-                  name="fecha_contratacion"
-                  type="date"
-                  value={formData.fecha_contratacion}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+              <Label htmlFor="direccion">Dirección</Label>
+              <Input id="direccion" name="direccion" placeholder="Dirección completa" value={formData.direccion} onChange={handleChange} />
 
-              <div className="space-y-2">
-                <Label htmlFor="notas">Notas Adicionales</Label>
-                <Textarea
-                  id="notas"
-                  name="notas"
-                  placeholder="Información adicional relevante"
-                  value={formData.notas}
-                  onChange={handleChange}
-                  rows={3}
-                />
-              </div>
+              <Label htmlFor="fecha_contratacion">Fecha de Contratación</Label>
+              <Input id="fecha_contratacion" name="fecha_contratacion" type="date" value={formData.fecha_contratacion} onChange={handleChange} required />
+
+              <Label htmlFor="notas">Notas Adicionales</Label>
+              <Textarea id="notas" name="notas" placeholder="Información adicional relevante" value={formData.notas} onChange={handleChange} rows={3} />
             </div>
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
@@ -183,4 +169,3 @@ export default function NuevoEmpleadoPage() {
     </div>
   )
 }
-

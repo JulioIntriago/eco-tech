@@ -1,9 +1,9 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,66 +12,117 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
 
-// Datos de ejemplo para clientes y técnicos
-const clientes = [
-  { id: "CLI-001", nombre: "Juan Pérez" },
-  { id: "CLI-002", nombre: "María López" },
-  { id: "CLI-003", nombre: "Carlos Ruiz" },
-  { id: "CLI-004", nombre: "Ana Gómez" },
-  { id: "CLI-005", nombre: "Pedro Sánchez" },
-]
+// Tipos para los clientes y técnicos
+type Cliente = {
+  id: string
+  nombre: string
+}
 
-const tecnicos = [
-  { id: "TEC-001", nombre: "Carlos Ruiz" },
-  { id: "TEC-002", nombre: "Laura Méndez" },
-  { id: "TEC-003", nombre: "Roberto Díaz" },
-]
+type Tecnico = {
+  id: string
+  nombre: string
+}
 
 export default function NuevaOrdenPage() {
   const router = useRouter()
+
+  // Estado para el formulario
   const [formData, setFormData] = useState({
     cliente_id: "",
     dispositivo: "",
     modelo: "",
     problema: "",
     costo_estimado: "",
-    tecnico_asignado: "",
+    tecnico_id: "",
     notas: "",
   })
-  const [loading, setLoading] = useState(false)
 
+  const [loading, setLoading] = useState(false)
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([])
+
+  // Obtener clientes y técnicos desde Supabase al cargar
+  useEffect(() => {
+    const fetchDatos = async () => {
+      try {
+        // Obtener clientes
+        const { data: clientesData, error: errorClientes } = await supabase
+          .from("clientes")
+          .select("id, nombre")
+
+        if (errorClientes) throw errorClientes
+        setClientes(clientesData || [])
+
+        // Obtener usuarios con rol técnico
+        const { data: tecnicosData, error: errorTecnicos } = await supabase
+          .from("empleados")
+          .select("id, nombre")
+          .eq("rol", "tecnico")
+
+        if (errorTecnicos) throw errorTecnicos
+        setTecnicos(tecnicosData || [])
+      } catch (error: any) {
+        console.error("Error al cargar los datos:", error.message)
+      }
+    }
+
+    fetchDatos()
+  }, [])
+
+  // Manejar cambios en inputs y textarea
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  // Manejar cambios en selects personalizados
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  // Validar Formulario
+  const validarFormulario = () => {
+    if (!formData.cliente_id) return "Selecciona un cliente."
+    if (!formData.dispositivo) return "El tipo de dispositivo es obligatorio."
+    if (!formData.modelo) return "El modelo es obligatorio."
+    if (!formData.problema) return "La descripción del problema es obligatoria."
+    if (!formData.costo_estimado || isNaN(Number(formData.costo_estimado))) return "Costo estimado inválido."
+    return null
+  }
+
+  // Enviar formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
+    const errorValidacion = validarFormulario()
+    if (errorValidacion) {
+      alert(errorValidacion)
+      setLoading(false)
+      return
+    }
+
     try {
-      // Aquí iría la lógica para guardar en Supabase
-      console.log("Datos de la orden:", formData)
+      // Insertar orden en la tabla ordenes
+      const { error } = await supabase.from("ordenes").insert({
+        cliente_id: formData.cliente_id,
+        dispositivo: formData.dispositivo,
+        modelo: formData.modelo,
+        problema: formData.problema,
+        costo_estimado: parseFloat(formData.costo_estimado),
+        tecnico_id: formData.tecnico_id || null,
+        notas: formData.notas,
+        estado: "pendiente", // Estado inicial por defecto
+      })
 
-      // Simular tiempo de carga
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (error) throw error
 
-      // Redireccionar a la lista de órdenes
+      alert("Orden creada con éxito.")
       router.push("/dashboard/ordenes")
-    } catch (error) {
-      console.error("Error al crear la orden:", error)
+    } catch (error: any) {
+      console.error("Error al crear la orden:", error.message || error)
+      alert(`Error al crear la orden: ${error.message || "Error desconocido"}`)
     } finally {
       setLoading(false)
     }
@@ -96,124 +147,105 @@ export default function NuevaOrdenPage() {
             <CardDescription>Ingresa los detalles de la nueva orden de reparación</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-4">
+            {/* Cliente */}
+            <div className="space-y-2">
+              <Label htmlFor="cliente_id">Cliente</Label>
+              <Select
+                value={formData.cliente_id}
+                onValueChange={(value) => handleSelectChange("cliente_id", value)}
+                required
+              >
+                <SelectTrigger id="cliente_id">
+                  <SelectValue placeholder="Selecciona un cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientes.map((cliente) => (
+                    <SelectItem key={cliente.id} value={cliente.id}>
+                      {cliente.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Dispositivo y Modelo */}
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="cliente_id">Cliente</Label>
-                <Select
-                  value={formData.cliente_id}
-                  onValueChange={(value) => handleSelectChange("cliente_id", value)}
+                <Label htmlFor="dispositivo">Tipo de Dispositivo</Label>
+                <Input
+                  id="dispositivo"
+                  name="dispositivo"
+                  placeholder="Ej. iPhone, Samsung, etc."
+                  value={formData.dispositivo}
+                  onChange={handleChange}
                   required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="modelo">Modelo</Label>
+                <Input
+                  id="modelo"
+                  name="modelo"
+                  placeholder="Ej. iPhone 12, Galaxy S21"
+                  value={formData.modelo}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Problema */}
+            <div className="space-y-2">
+              <Label htmlFor="problema">Descripción del Problema</Label>
+              <Textarea
+                id="problema"
+                name="problema"
+                placeholder="Describe el problema del dispositivo"
+                value={formData.problema}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* Costo y Técnico */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="costo_estimado">Costo Estimado ($)</Label>
+                <Input
+                  id="costo_estimado"
+                  name="costo_estimado"
+                  type="number"
+                  placeholder="0.00"
+                  value={formData.costo_estimado}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tecnico_id">Técnico Asignado</Label>
+                <Select
+                  value={formData.tecnico_id}
+                  onValueChange={(value) => handleSelectChange("tecnico_id", value)}
                 >
-                  <SelectTrigger id="cliente_id">
-                    <SelectValue placeholder="Selecciona un cliente" />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un técnico (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clientes.map((cliente) => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nombre}
+                    {tecnicos.map((tecnico) => (
+                      <SelectItem key={tecnico.id} value={tecnico.id}>
+                        {tecnico.nombre}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="dispositivo">Tipo de Dispositivo</Label>
-                  <Input
-                    id="dispositivo"
-                    name="dispositivo"
-                    placeholder="iPhone, Samsung, etc."
-                    value={formData.dispositivo}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="modelo">Modelo</Label>
-                  <Input
-                    id="modelo"
-                    name="modelo"
-                    placeholder="iPhone 12, Galaxy S21, etc."
-                    value={formData.modelo}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="problema">Descripción del Problema</Label>
-                <Textarea
-                  id="problema"
-                  name="problema"
-                  placeholder="Detalla el problema que presenta el dispositivo"
-                  value={formData.problema}
-                  onChange={handleChange}
-                  required
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="costo_estimado">Costo Estimado ($)</Label>
-                  <Input
-                    id="costo_estimado"
-                    name="costo_estimado"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.costo_estimado}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tecnico_asignado">Técnico Asignado</Label>
-                  <Select
-                    value={formData.tecnico_asignado}
-                    onValueChange={(value) => handleSelectChange("tecnico_asignado", value)}
-                  >
-                    <SelectTrigger id="tecnico_asignado">
-                      <SelectValue placeholder="Selecciona un técnico (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tecnicos.map((tecnico) => (
-                        <SelectItem key={tecnico.id} value={tecnico.id}>
-                          {tecnico.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notas">Notas Adicionales</Label>
-                <Textarea
-                  id="notas"
-                  name="notas"
-                  placeholder="Información adicional relevante"
-                  value={formData.notas}
-                  onChange={handleChange}
-                  rows={3}
-                />
-              </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end gap-2">
-            <Button variant="outline" type="button" asChild>
-              <Link href="/dashboard/ordenes">Cancelar</Link>
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Guardando..." : "Guardar Orden"}
-            </Button>
+          <CardFooter className="flex justify-end">
+            <Button type="submit" disabled={loading}>{loading ? "Guardando..." : "Guardar Orden"}</Button>
           </CardFooter>
         </form>
       </Card>
     </div>
   )
 }
-

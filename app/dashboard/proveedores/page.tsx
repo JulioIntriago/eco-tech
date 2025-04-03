@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,88 +11,43 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Phone, Mail } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 
-// Datos de ejemplo para proveedores
-const proveedores = [
-  {
-    id: "PROV-001",
-    nombre: "TechParts Inc.",
-    tipo: "Repuestos",
-    telefono: "555-123-4567",
-    correo: "contacto@techparts.com",
-    direccion: "Calle Industrial 123, Ciudad",
-    productos: 15,
-    ultima_compra: "2023-05-10",
-    estado: "activo",
-  },
-  {
-    id: "PROV-002",
-    nombre: "BatteryPlus",
-    tipo: "Baterías",
-    telefono: "555-987-6543",
-    correo: "ventas@batteryplus.com",
-    direccion: "Av. Tecnológica 456, Ciudad",
-    productos: 8,
-    ultima_compra: "2023-05-05",
-    estado: "activo",
-  },
-  {
-    id: "PROV-003",
-    nombre: "ElectroSupply",
-    tipo: "Accesorios",
-    telefono: "555-456-7890",
-    correo: "info@electrosupply.com",
-    direccion: "Blvd. Electrónico 789, Ciudad",
-    productos: 22,
-    ultima_compra: "2023-04-28",
-    estado: "activo",
-  },
-  {
-    id: "PROV-004",
-    nombre: "ScreenGuard",
-    tipo: "Protectores",
-    telefono: "555-234-5678",
-    correo: "ventas@screenguard.com",
-    direccion: "Calle Protección 234, Ciudad",
-    productos: 5,
-    ultima_compra: "2023-04-15",
-    estado: "inactivo",
-  },
-  {
-    id: "PROV-005",
-    nombre: "CaseMakers",
-    tipo: "Fundas",
-    telefono: "555-876-5432",
-    correo: "info@casemakers.com",
-    direccion: "Av. Diseño 567, Ciudad",
-    productos: 12,
-    ultima_compra: "2023-05-12",
-    estado: "activo",
-  },
-  {
-    id: "PROV-006",
-    nombre: "SoundTech",
-    tipo: "Audio",
-    telefono: "555-345-6789",
-    correo: "contacto@soundtech.com",
-    direccion: "Calle Sonido 890, Ciudad",
-    productos: 7,
-    ultima_compra: "2023-05-08",
-    estado: "activo",
-  },
-]
-
 export default function ProveedoresPage() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [proveedores, setProveedores] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
-  // Filtrar proveedores según búsqueda
+  useEffect(() => {
+    setMounted(true)
+
+    const fetchProveedores = async () => {
+      const { data, error } = await supabase
+        .from("proveedores")
+        .select("*")
+        .order("nombre", { ascending: true })
+
+      if (error) {
+        console.error("Error al cargar proveedores:", error)
+      } else {
+        setProveedores(data || [])
+      }
+
+      setLoading(false)
+    }
+
+    fetchProveedores()
+  }, [])
+
   const proveedoresFiltrados = proveedores.filter(
     (proveedor) =>
-      proveedor.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      proveedor.tipo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      proveedor.telefono.includes(searchQuery) ||
-      proveedor.correo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      proveedor.id.toLowerCase().includes(searchQuery.toLowerCase()),
+      proveedor.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      proveedor.tipo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      proveedor.telefono?.includes(searchQuery) ||
+      proveedor.correo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      proveedor.id?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (!mounted) return null // 👉 evitar render hasta que esté montado
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -138,10 +94,14 @@ export default function ProveedoresPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {proveedoresFiltrados.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">Cargando proveedores...</TableCell>
+                </TableRow>
+              ) : proveedoresFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">
-                    No se encontraron proveedores que coincidan con los criterios de búsqueda.
+                    No se encontraron proveedores.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -164,8 +124,12 @@ export default function ProveedoresPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{proveedor.ultima_compra}</TableCell>
-                    <TableCell className="text-center">{proveedor.productos}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {proveedor.ultima_compra || "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {proveedor.productos ?? "—"}
+                    </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={proveedor.estado === "activo" ? "success" : "secondary"}>
                         {proveedor.estado === "activo" ? "Activo" : "Inactivo"}
@@ -173,7 +137,9 @@ export default function ProveedoresPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/proveedores/${proveedor.id}`}>Ver detalles</Link>
+                        <Link href={`/dashboard/proveedores/${proveedor.id}`}>
+                          Ver detalles
+                        </Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -186,4 +152,3 @@ export default function ProveedoresPage() {
     </div>
   )
 }
-
