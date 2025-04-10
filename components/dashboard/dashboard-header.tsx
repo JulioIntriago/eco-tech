@@ -14,28 +14,77 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { supabase } from "@/lib/supabase"
 
 export function DashboardHeader() {
   const { setIsOpen } = useSidebar()
   const [searchQuery, setSearchQuery] = useState("")
   const [userEmail, setUserEmail] = useState("")
+  const [userId, setUserId] = useState("")
+  const [notificaciones, setNotificaciones] = useState<any[]>([])
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
+    const fetchUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (user) setUserEmail(user.email || "")
+      if (user) {
+        setUserEmail(user.email || "")
+        setUserId(user.id)
+      }
     }
-    getUser()
+    fetchUser()
   }, [])
+
+  useEffect(() => {
+    if (!userId) return
+
+    const fetchNotificaciones = async () => {
+      const { data, error } = await supabase
+        .from("notificaciones")
+        .select("*")
+        .eq("usuario_id", userId)
+        .order("fecha_creacion", { ascending: false })
+        .limit(5)
+
+      if (!error) {
+        setNotificaciones(data || [])
+      }
+    }
+
+    fetchNotificaciones()
+
+    const channel = supabase
+      .channel("realtime-notificaciones-header")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notificaciones",
+          filter: `usuario_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setNotificaciones((prev) => [payload.new, ...prev.slice(0, 4)]) // máx 5
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userId])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push("/auth/login")
   }
+
+  const noLeidas = notificaciones.filter((n) => !n.leida).length
 
   return (
     <header className="flex items-center justify-between gap-4">
@@ -57,11 +106,42 @@ export function DashboardHeader() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary"></span>
-          <span className="sr-only">Notificaciones</span>
-        </Button>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5" />
+              {noLeidas > 0 && (
+                <span className="absolute right-1 top-1 h-4 w-4 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                  {noLeidas}
+                </span>
+              )}
+              <span className="sr-only">Notificaciones</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="text-sm font-semibold mb-2">Notificaciones</div>
+            {notificaciones.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No hay notificaciones</p>
+            ) : (
+              <ul className="space-y-2">
+                {notificaciones.map((n) => (
+                  <li key={n.id} className="border-b pb-1 text-sm">
+                    <div className="font-medium">{n.titulo}</div>
+                    <p className="text-muted-foreground">{n.mensaje}</p>
+                    <span className="text-xs text-gray-400 block">{new Date(n.fecha_creacion).toLocaleString()}</span>
+                    {n.enlace && (
+                      <a href={n.enlace} className="text-primary text-xs hover:underline">
+                        Ver detalles
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </PopoverContent>
+        </Popover>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">

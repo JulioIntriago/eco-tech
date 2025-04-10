@@ -1,51 +1,79 @@
 "use client"
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Phone, Mail } from "lucide-react";
-import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Search, Phone, Mail } from "lucide-react"
+import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { supabase } from "@/lib/supabase"
+import { getCurrentUserEmpresa } from "@/lib/empresa-utils"
+
+// ✅ Tipo de cliente
+type Cliente = {
+  id: string
+  nombre: string
+  telefono: string
+  correo: string
+  direccion: string
+  notas: string
+  empresa_id: string
+  ordenes_activas?: number
+  total_gastado?: number
+  ultima_visita?: string
+}
 
 export default function ClientesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("")
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Obtener clientes desde Supabase
   useEffect(() => {
     const fetchClientes = async () => {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*');
+      try {
+        const empresa_id = await getCurrentUserEmpresa()
 
-      if (error) {
-        console.error("Error al obtener clientes:", error);
-      } else {
-        setClientes(data);
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .eq("empresa_id", empresa_id)
+
+        if (error) throw error
+        setClientes(data || [])
+      } catch (error: any) {
+        console.error("Error al obtener clientes:", error.message)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false);
-    };
+    }
 
-    fetchClientes();
-  }, []);
+    fetchClientes()
+  }, [])
 
-  // Filtrar clientes según búsqueda
-  const clientesFiltrados = clientes.filter(
-    (cliente) =>
-      cliente.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cliente.telefono.includes(searchQuery) ||
-      cliente.correo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cliente.id.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const clientesFiltrados = clientes.filter((cliente) =>
+    cliente.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cliente.telefono.includes(searchQuery) ||
+    cliente.correo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    cliente.id.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
-  if (loading) {
-    return <div>Cargando clientes...</div>;
-  }
+  if (loading) return <div className="p-6">Cargando clientes...</div>
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -76,7 +104,9 @@ export default function ClientesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Directorio de Clientes</CardTitle>
-          <CardDescription>Gestiona la información de tus clientes y su historial</CardDescription>
+          <CardDescription>
+            Gestiona la información de tus clientes y su historial
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -115,16 +145,18 @@ export default function ClientesPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{cliente.ultima_visita}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {cliente.ultima_visita ?? "—"}
+                    </TableCell>
                     <TableCell className="text-center">
-                      {cliente.ordenes_activas > 0 ? (
+                      {cliente.ordenes_activas && cliente.ordenes_activas > 0 ? (
                         <Badge variant="default">{cliente.ordenes_activas}</Badge>
                       ) : (
                         <span className="text-muted-foreground">0</span>
                       )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-right">
-                      ${cliente.total_gastado?.toFixed(2)}
+                      ${cliente.total_gastado?.toFixed(2) ?? "0.00"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
@@ -139,5 +171,5 @@ export default function ClientesPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

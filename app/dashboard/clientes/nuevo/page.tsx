@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/card"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft } from "lucide-react"
+import { getCurrentUserEmpresa } from "@/lib/empresa-utils"
 
 export default function NuevoClientePage() {
   const router = useRouter()
@@ -45,20 +46,20 @@ export default function NuevoClientePage() {
     setLoading(true)
 
     try {
+      const empresa_id = await getCurrentUserEmpresa()
+
       const { data, error } = await supabase
         .from("clientes")
-        .insert([formData])
+        .insert([{ ...formData, empresa_id }])
         .select()
-        .single() // ⬅️ Obtenemos el cliente recién insertado
+        .single()
 
       if (error) throw error
 
       console.log("Cliente creado:", data)
-
-      // Redirigir al detalle del cliente recién creado
       router.push(`/dashboard/clientes/${data.id}`)
-    } catch (error) {
-      console.error("Error al crear el cliente:", error)
+    } catch (error: any) {
+      console.error("Error al crear el cliente:", error.message || error)
       alert("Hubo un error al guardar el cliente. Revisa la consola.")
     } finally {
       setLoading(false)

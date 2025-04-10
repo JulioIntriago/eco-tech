@@ -1,87 +1,49 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft, Minus, Plus, Search, Trash } from "lucide-react"
+import Link from "next/link"
 
-// Datos de ejemplo para clientes y productos
-const clientes = [
-  { id: "CLI-001", nombre: "Juan Pérez" },
-  { id: "CLI-002", nombre: "María López" },
-  { id: "CLI-003", nombre: "Carlos Ruiz" },
-  { id: "CLI-004", nombre: "Ana Gómez" },
-  { id: "CLI-005", nombre: "Pedro Sánchez" },
-]
+interface Cliente {
+  id: string
+  nombre: string
+}
 
-const productos = [
-  {
-    id: "PROD-001",
-    nombre: "Pantalla iPhone 12",
-    categoria: "Repuestos",
-    precio: 120,
-    cantidad: 5,
-  },
-  {
-    id: "PROD-002",
-    nombre: "Batería Samsung S21",
-    categoria: "Repuestos",
-    precio: 45,
-    cantidad: 8,
-  },
-  {
-    id: "PROD-003",
-    nombre: "Cargador USB-C",
-    categoria: "Accesorios",
-    precio: 15,
-    cantidad: 12,
-  },
-  {
-    id: "PROD-004",
-    nombre: "Protector Pantalla iPhone 13",
-    categoria: "Accesorios",
-    precio: 10,
-    cantidad: 25,
-  },
-  {
-    id: "PROD-005",
-    nombre: "Funda iPhone 12",
-    categoria: "Accesorios",
-    precio: 18,
-    cantidad: 15,
-  },
-  {
-    id: "PROD-006",
-    nombre: "Cable Lightning 2m",
-    categoria: "Cables",
-    precio: 12,
-    cantidad: 20,
-  },
-  {
-    id: "PROD-007",
-    nombre: "Auriculares Bluetooth",
-    categoria: "Audio",
-    precio: 35,
-    cantidad: 7,
-  },
-  {
-    id: "PROD-008",
-    nombre: "Batería Externa 10000mAh",
-    categoria: "Baterías",
-    precio: 25,
-    cantidad: 10,
-  },
-]
-
-// Métodos de pago disponibles
-const metodosPago = ["Efectivo", "Tarjeta", "Transferencia"]
+interface Producto {
+  id: string
+  nombre: string
+  categoria: string
+  precio: number
+  cantidad: number
+}
 
 interface ProductoCarrito {
   id: string
@@ -91,8 +53,12 @@ interface ProductoCarrito {
   subtotal: number
 }
 
+const metodosPago = ["Efectivo", "Tarjeta", "Transferencia"]
+
 export default function NuevaVentaPage() {
   const router = useRouter()
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
   const [clienteId, setClienteId] = useState("")
   const [metodoPago, setMetodoPago] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
@@ -100,23 +66,42 @@ export default function NuevaVentaPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  // Filtrar productos según búsqueda
   const productosFiltrados = productos.filter((producto) =>
-    producto.nombre.toLowerCase().includes(searchQuery.toLowerCase()),
+    producto.nombre.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Actualizar total cuando cambia el carrito
   useEffect(() => {
-    const nuevoTotal = carrito.reduce((sum, item) => sum + item.subtotal, 0)
-    setTotal(nuevoTotal)
+    const fetchData = async () => {
+      const { data: clientesData } = await supabase
+        .from("clientes")
+        .select("id, nombre")
+      setClientes(clientesData || [])
+
+      const { data: productosData, error } = await supabase
+        .from("inventario")
+        .select("id, nombre, precio, cantidad, categoria")
+
+      if (error) console.error("Error al cargar productos:", error)
+      setProductos(productosData || [])
+    }
+
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    const totalCalculado = carrito.reduce((acc, item) => acc + item.subtotal, 0)
+    setTotal(totalCalculado)
   }, [carrito])
 
-  // Agregar producto al carrito
-  const agregarProducto = (producto: (typeof productos)[0]) => {
-    const productoExistente = carrito.find((item) => item.id === producto.id)
+  const agregarProducto = (producto: Producto) => {
+    if (producto.cantidad <= 0) {
+      alert("No hay suficiente stock para agregar más productos.")
+      return
+    }
 
-    if (productoExistente) {
-      // Si ya existe, incrementar cantidad
+    const existe = carrito.find((item) => item.id === producto.id)
+    if (existe) {
+      // Si ya existe el producto en el carrito, incrementamos la cantidad y el subtotal
       setCarrito(
         carrito.map((item) =>
           item.id === producto.id
@@ -125,11 +110,19 @@ export default function NuevaVentaPage() {
                 cantidad: item.cantidad + 1,
                 subtotal: (item.cantidad + 1) * item.precio,
               }
-            : item,
-        ),
+            : item
+        )
+      )
+
+      // También disminuimos el stock en el inventario visual
+      setProductos(
+        productos.map((item) =>
+          item.id === producto.id
+            ? { ...item, cantidad: item.cantidad - 1 }
+            : item
+        )
       )
     } else {
-      // Si no existe, agregar nuevo
       setCarrito([
         ...carrito,
         {
@@ -140,10 +133,18 @@ export default function NuevaVentaPage() {
           subtotal: producto.precio,
         },
       ])
+
+      // Reducir el stock visualmente
+      setProductos(
+        productos.map((item) =>
+          item.id === producto.id
+            ? { ...item, cantidad: item.cantidad - 1 }
+            : item
+        )
+      )
     }
   }
 
-  // Incrementar cantidad de un producto en el carrito
   const incrementarCantidad = (id: string) => {
     setCarrito(
       carrito.map((item) =>
@@ -153,12 +154,11 @@ export default function NuevaVentaPage() {
               cantidad: item.cantidad + 1,
               subtotal: (item.cantidad + 1) * item.precio,
             }
-          : item,
-      ),
+          : item
+      )
     )
   }
 
-  // Decrementar cantidad de un producto en el carrito
   const decrementarCantidad = (id: string) => {
     setCarrito(
       carrito.map((item) =>
@@ -168,46 +168,81 @@ export default function NuevaVentaPage() {
               cantidad: item.cantidad - 1,
               subtotal: (item.cantidad - 1) * item.precio,
             }
-          : item,
-      ),
+          : item
+      )
     )
   }
 
-  // Eliminar producto del carrito
   const eliminarProducto = (id: string) => {
     setCarrito(carrito.filter((item) => item.id !== id))
   }
 
-  // Procesar la venta
   const procesarVenta = async () => {
-    if (carrito.length === 0) {
-      alert("El carrito está vacío")
-      return
-    }
-
-    if (!metodoPago) {
-      alert("Selecciona un método de pago")
+    if (carrito.length === 0 || !metodoPago) {
+      alert("Completa todos los campos.")
       return
     }
 
     setLoading(true)
 
     try {
-      // Aquí iría la lógica para guardar en Supabase
-      console.log("Datos de la venta:", {
-        cliente_id: clienteId,
-        metodo_pago: metodoPago,
-        total,
-        productos: carrito,
-      })
+      const { data: userSession } = await supabase.auth.getUser()
+      const usuario_id = userSession.user?.id
 
-      // Simular tiempo de carga
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const { data: perfil } = await supabase
+        .from("usuarios")
+        .select("empresa_id")
+        .eq("id", usuario_id)
+        .single()
 
-      // Redireccionar a la lista de ventas
+      const { data: venta, error: errorVenta } = await supabase
+        .from("ventas")
+        .insert([
+          {
+            cliente_id: clienteId === "anonymous" ? null : clienteId,
+            metodo_pago: metodoPago,
+            total: total,
+            usuario_id,
+            empresa_id: perfil?.empresa_id,
+          },
+        ])
+        .select()
+        .single()
+
+      if (errorVenta) throw errorVenta
+
+      const detalles = carrito.map((item) => ({
+        venta_id: venta.id,
+        producto_id: item.id,
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        precio: item.precio,
+        subtotal: item.subtotal,
+      }))
+
+      const { error: errorDetalle } = await supabase
+        .from("ventas_detalle")
+        .insert(detalles)
+
+      if (errorDetalle) throw errorDetalle
+
+      // Actualizar el stock en la base de datos
+      await Promise.all(
+        carrito.map((item) =>
+          supabase
+            .from("inventario")
+            .update({
+              cantidad: supabase
+                .rpc('subtract_stock', { cantidad: item.cantidad, producto_id: item.id }), // Llamada a la función RPC en Supabase
+            })
+              .eq("id", item.id)
+        )
+      )
+
       router.push("/dashboard/ventas")
     } catch (error) {
-      console.error("Error al procesar la venta:", error)
+      console.error("Error al procesar venta:", error)
+      alert("Ocurrió un error al guardar la venta.")
     } finally {
       setLoading(false)
     }
@@ -226,11 +261,11 @@ export default function NuevaVentaPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        {/* Sección productos */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Buscar Productos</CardTitle>
-              <CardDescription>Busca y agrega productos al carrito</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="relative mb-4">
@@ -254,90 +289,73 @@ export default function NuevaVentaPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productosFiltrados.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        No se encontraron productos que coincidan con la búsqueda.
+                  {productosFiltrados.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.nombre}</TableCell>
+                      <TableCell>{p.categoria}</TableCell>
+                      <TableCell className="text-right">${p.precio.toFixed(2)}</TableCell>
+                      <TableCell className="text-center">{p.cantidad}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => agregarProducto(p)}
+                          disabled={p.cantidad === 0}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Agregar
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    productosFiltrados.map((producto) => (
-                      <TableRow key={producto.id}>
-                        <TableCell className="font-medium">{producto.nombre}</TableCell>
-                        <TableCell>{producto.categoria}</TableCell>
-                        <TableCell className="text-right">${producto.precio.toFixed(2)}</TableCell>
-                        <TableCell className="text-center">{producto.cantidad}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => agregarProducto(producto)}
-                            disabled={producto.cantidad === 0}
-                          >
-                            <Plus className="mr-1 h-4 w-4" />
-                            Agregar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </div>
 
+        {/* Sección carrito */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Carrito de Compra</CardTitle>
-              <CardDescription>Productos seleccionados para la venta</CardDescription>
+              <CardTitle>Carrito de Venta</CardTitle>
             </CardHeader>
             <CardContent>
               {carrito.length === 0 ? (
-                <div className="py-4 text-center text-muted-foreground">
-                  El carrito está vacío. Agrega productos para continuar.
-                </div>
+                <p className="text-center text-muted-foreground">Agrega productos</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {carrito.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
-                      <div className="space-y-1">
+                    <div key={item.id} className="flex justify-between items-center">
+                      <div>
                         <p className="font-medium">{item.nombre}</p>
                         <p className="text-sm text-muted-foreground">
                           ${item.precio.toFixed(2)} x {item.cantidad}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-md border">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-r-none"
-                            onClick={() => decrementarCantidad(item.id)}
-                            disabled={item.cantidad <= 1}
-                          >
-                            <Minus className="h-3 w-3" />
-                            <span className="sr-only">Decrementar</span>
-                          </Button>
-                          <div className="flex h-8 w-10 items-center justify-center text-sm">{item.cantidad}</div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-l-none"
-                            onClick={() => incrementarCantidad(item.id)}
-                          >
-                            <Plus className="h-3 w-3" />
-                            <span className="sr-only">Incrementar</span>
-                          </Button>
-                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive"
+                          onClick={() => decrementarCantidad(item.id)}
+                          disabled={item.cantidad <= 1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span>{item.cantidad}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => incrementarCantidad(item.id)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500"
                           onClick={() => eliminarProducto(item.id)}
                         >
                           <Trash className="h-4 w-4" />
-                          <span className="sr-only">Eliminar</span>
                         </Button>
                       </div>
                     </div>
@@ -346,48 +364,46 @@ export default function NuevaVentaPage() {
               )}
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <div className="space-y-4 w-full">
-                <div className="space-y-2">
-                  <Label htmlFor="cliente">Cliente (Opcional)</Label>
-                  <Select value={clienteId} onValueChange={setClienteId}>
-                    <SelectTrigger id="cliente">
-                      <SelectValue placeholder="Selecciona un cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="anonymous">Cliente Anónimo</SelectItem>
-                      {clientes.map((cliente) => (
-                        <SelectItem key={cliente.id} value={cliente.id}>
-                          {cliente.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="metodo_pago">Método de Pago</Label>
-                  <Select value={metodoPago} onValueChange={setMetodoPago} required>
-                    <SelectTrigger id="metodo_pago">
-                      <SelectValue placeholder="Selecciona un método de pago" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {metodosPago.map((metodo) => (
-                        <SelectItem key={metodo} value={metodo}>
-                          {metodo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2 w-full">
+                <Label>Cliente (opcional)</Label>
+                <Select value={clienteId} onValueChange={setClienteId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="anonymous">Anónimo</SelectItem>
+                    {clientes.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label>Método de Pago</Label>
+                <Select value={metodoPago} onValueChange={setMetodoPago}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un método de pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metodosPago.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="flex w-full items-center justify-between border-t pt-4">
-                <div className="text-lg font-semibold">Total:</div>
-                <div className="text-xl font-bold">${total.toFixed(2)}</div>
+
+              <div className="flex justify-between w-full pt-4 border-t">
+                <span className="font-bold text-lg">Total:</span>
+                <span className="text-xl font-bold">${total.toFixed(2)}</span>
               </div>
+
               <Button
                 className="w-full"
-                size="lg"
                 onClick={procesarVenta}
-                disabled={carrito.length === 0 || !metodoPago || loading}
+                disabled={loading || carrito.length === 0 || !metodoPago}
               >
                 {loading ? "Procesando..." : "Completar Venta"}
               </Button>
@@ -398,4 +414,3 @@ export default function NuevaVentaPage() {
     </div>
   )
 }
-

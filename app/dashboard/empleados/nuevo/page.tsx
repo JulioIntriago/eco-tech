@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -8,11 +7,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { getCurrentUserEmpresa } from "@/lib/empresa-utils"
 
 export default function NuevoEmpleadoPage() {
   const router = useRouter()
@@ -25,21 +37,16 @@ export default function NuevoEmpleadoPage() {
     fecha_contratacion: "",
     notas: "",
   })
+  const [mostrarAcceso, setMostrarAcceso] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,59 +54,21 @@ export default function NuevoEmpleadoPage() {
     setLoading(true)
 
     try {
-      // Verificar si el empleado ya existe por correo
-      const { data: existente, error: errorBuscar } = await supabase
-        .from("empleados")
-        .select("id")
-        .eq("correo", formData.correo)
-        .maybeSingle()
+      const empresa_id = await getCurrentUserEmpresa()
 
-      if (errorBuscar) throw errorBuscar
-
-      if (existente) {
-        alert("Ya existe un empleado con este correo.")
-        setLoading(false)
-        return
-      }
-
-      // Insertar empleado
-      const { data: empleadoData, error: errorInsertar } = await supabase
-        .from("empleados")
-        .insert({
-          nombre: formData.nombre,
-          rol: formData.rol.toLowerCase(),
-          telefono: formData.telefono,
-          correo: formData.correo,
-          direccion: formData.direccion,
-          fecha_contratacion: formData.fecha_contratacion,
-          estado: "activo",
-          notas: formData.notas,
-        })
-        .select()
-        .single()
-
-      if (errorInsertar) throw errorInsertar
-
-      // Generar token de invitación
-      const token = crypto.randomUUID()
-
-      // Insertar invitación
-      await supabase.from("invitaciones").insert({
-        empleado_id: empleadoData.id,
-        correo: formData.correo,
-        nombre: formData.nombre, // ✅ campo requerido
-        token,
-        estado: "pendiente",
+      const res = await fetch("/api/usuarios/crear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, empresa_id }),
       })
-      
 
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Error al crear el usuario")
 
-      // Notificación y redirección
-      alert("Empleado creado y invitación enviada con éxito.")
-      router.push("/dashboard/empleados")
+      setMostrarAcceso(true)
     } catch (error: any) {
-      console.error("Error al crear el empleado:", error?.message || error)
-      alert(`Error al crear el empleado: ${error?.message || "Error desconocido"}`)
+      console.error("Error al crear el usuario:", error.message)
+      alert(`Error: ${error.message || "Error desconocido"}`)
     } finally {
       setLoading(false)
     }
@@ -114,20 +83,19 @@ export default function NuevoEmpleadoPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h2 className="text-2xl font-bold tracking-tight">Nuevo Empleado</h2>
+        <h2 className="text-2xl font-bold tracking-tight">Nuevo Usuario</h2>
       </div>
 
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
-            <CardTitle>Información del Empleado</CardTitle>
-            <CardDescription>Ingresa los datos del nuevo empleado</CardDescription>
+            <CardTitle>Información del Usuario</CardTitle>
+            <CardDescription>Ingresa los datos del nuevo usuario</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
               <Label htmlFor="nombre">Nombre Completo</Label>
-              <Input id="nombre" name="nombre" placeholder="Nombre y apellidos" value={formData.nombre} onChange={handleChange} required />
-
+              <Input id="nombre" name="nombre" value={formData.nombre} onChange={handleChange} required />
               <Label htmlFor="rol">Rol</Label>
               <Select value={formData.rol} onValueChange={(value) => handleSelectChange("rol", value)} required>
                 <SelectTrigger id="rol">
@@ -141,27 +109,33 @@ export default function NuevoEmpleadoPage() {
               </Select>
 
               <Label htmlFor="telefono">Teléfono</Label>
-              <Input id="telefono" name="telefono" placeholder="Número de teléfono" value={formData.telefono} onChange={handleChange} required />
-
+              <Input id="telefono" name="telefono" value={formData.telefono} onChange={handleChange} required />
               <Label htmlFor="correo">Correo Electrónico</Label>
-              <Input id="correo" name="correo" type="email" placeholder="correo@ejemplo.com" value={formData.correo} onChange={handleChange} required />
-
+              <Input id="correo" name="correo" type="email" value={formData.correo} onChange={handleChange} required />
               <Label htmlFor="direccion">Dirección</Label>
-              <Input id="direccion" name="direccion" placeholder="Dirección completa" value={formData.direccion} onChange={handleChange} />
-
+              <Input id="direccion" name="direccion" value={formData.direccion} onChange={handleChange} />
               <Label htmlFor="fecha_contratacion">Fecha de Contratación</Label>
               <Input id="fecha_contratacion" name="fecha_contratacion" type="date" value={formData.fecha_contratacion} onChange={handleChange} required />
-
               <Label htmlFor="notas">Notas Adicionales</Label>
-              <Textarea id="notas" name="notas" placeholder="Información adicional relevante" value={formData.notas} onChange={handleChange} rows={3} />
+              <Textarea id="notas" name="notas" value={formData.notas} onChange={handleChange} rows={3} />
             </div>
+
+            {mostrarAcceso && (
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <p><strong>Usuario registrado correctamente.</strong></p>
+                <p>📧 <strong>Correo:</strong> {formData.correo}</p>
+                <p>🔗 <strong>Registro:</strong> Comparte este enlace: <br />
+                  <code>http://localhost:3000/auth/registro-empleado</code>
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex justify-end gap-2">
             <Button variant="outline" type="button" asChild>
               <Link href="/dashboard/empleados">Cancelar</Link>
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Guardando..." : "Guardar Empleado"}
+              {loading ? "Guardando..." : "Guardar Usuario"}
             </Button>
           </CardFooter>
         </form>

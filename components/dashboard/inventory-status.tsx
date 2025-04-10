@@ -1,52 +1,40 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
-const inventoryItems = [
-  {
-    id: "INV-001",
-    nombre: "Pantalla iPhone 12",
-    categoria: "Repuestos",
-    precio: 120,
-    cantidad: 5,
-    estado: "Normal",
-  },
-  {
-    id: "INV-002",
-    nombre: "Batería Samsung S21",
-    categoria: "Repuestos",
-    precio: 45,
-    cantidad: 8,
-    estado: "Normal",
-  },
-  {
-    id: "INV-003",
-    nombre: "Cargador USB-C",
-    categoria: "Accesorios",
-    precio: 15,
-    cantidad: 2,
-    estado: "Bajo",
-  },
-  {
-    id: "INV-004",
-    nombre: "Protector Pantalla",
-    categoria: "Accesorios",
-    precio: 10,
-    cantidad: 25,
-    estado: "Normal",
-  },
-  {
-    id: "INV-005",
-    nombre: "Funda iPhone 12",
-    categoria: "Accesorios",
-    precio: 18,
-    cantidad: 3,
-    estado: "Bajo",
-  },
-]
-
 export function InventoryStatus() {
+  const [productos, setProductos] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchStockBajo = async () => {
+      const { data, error } = await supabase
+        .from("inventario")
+        .select("id, nombre, categoria, cantidad, precio")
+        .lte("cantidad", 10) // productos con stock bajo o igual a 10
+        .gt("cantidad", 0)  // solo productos con cantidad mayor que 0
+        .order("cantidad", { ascending: true })
+
+      if (error) {
+        console.error("Error al cargar productos con stock bajo:", error)
+      } else {
+        setProductos(data || [])
+      }
+    }
+
+    fetchStockBajo()
+  }, [])
+
+  const getEstadoStock = (cantidad: number) => {
+    if (cantidad === 0) return "Agotado"
+    if (cantidad <= 10) return "Bajo"
+    return "Normal"
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -54,8 +42,8 @@ export function InventoryStatus() {
           <CardTitle>Estado del Inventario</CardTitle>
           <CardDescription>Productos con stock bajo o agotados</CardDescription>
         </div>
-        <Button variant="outline" size="sm">
-          Ver todo
+        <Button variant="outline" size="sm" asChild>
+          <a href="/dashboard/inventario">Ver todo</a>
         </Button>
       </CardHeader>
       <CardContent>
@@ -69,21 +57,24 @@ export function InventoryStatus() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inventoryItems.map((item) => (
+            {productos.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.nombre}</TableCell>
                 <TableCell className="hidden md:table-cell">{item.categoria}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     {item.cantidad}
-                    {item.estado === "Bajo" && (
-                      <Badge variant="destructive" className="ml-2">
-                        Stock Bajo
+                    {getEstadoStock(item.cantidad) !== "Normal" && (
+                      <Badge
+                        variant={getEstadoStock(item.cantidad) === "Agotado" ? "destructive" : "secondary"}
+                        className="ml-2"
+                      >
+                        {getEstadoStock(item.cantidad) === "Agotado" ? "Agotado" : "Stock Bajo"}
                       </Badge>
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-right">${item.precio}</TableCell>
+                <TableCell className="text-right">${parseFloat(item.precio).toFixed(2)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -92,4 +83,3 @@ export function InventoryStatus() {
     </Card>
   )
 }
-

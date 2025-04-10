@@ -1,8 +1,7 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
@@ -13,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { ArrowLeft, Edit, Mail, Phone, MapPin, Trash } from "lucide-react"
 
-// Traducción de estado
 const traducirEstado = (estado: string) => ({
   pendiente: "Pendiente",
   en_proceso: "En Proceso",
@@ -30,11 +28,11 @@ function getVariantForEstado(estado: string): BadgeVariant {
     finalizado: "success",
     entregado: "outline",
   }
-
   return variantes[estado] ?? "default"
 }
 
-export default function DetalleClientePage({ params }: { params: { id: string } }) {
+export default function DetalleClientePage() {
+  const params = useParams()
   const router = useRouter()
   const [cliente, setCliente] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -47,7 +45,7 @@ export default function DetalleClientePage({ params }: { params: { id: string } 
       const { data: clienteData, error: errorCliente } = await supabase
         .from("clientes")
         .select("*")
-        .eq("id", params.id)
+        .eq("id", params.id as string)
         .single()
 
       if (errorCliente) {
@@ -59,19 +57,12 @@ export default function DetalleClientePage({ params }: { params: { id: string } 
       const { data: ordenes } = await supabase
         .from("ordenes")
         .select("*")
-        .eq("cliente_id", params.id)
+        .eq("cliente_id", params.id as string)
 
       const { data: compras } = await supabase
         .from("ventas")
-        .select(`
-          *,
-          productos_venta (
-            nombre,
-            cantidad,
-            precio
-          )
-        `)
-        .eq("cliente_id", params.id)
+        .select("*, productos_venta ( nombre, cantidad, precio )")
+        .eq("cliente_id", params.id as string)
 
       setCliente({
         ...clienteData,
@@ -82,13 +73,13 @@ export default function DetalleClientePage({ params }: { params: { id: string } 
       setCargando(false)
     }
 
-    fetchCliente()
-  }, [params.id])
+    if (params?.id) fetchCliente()
+  }, [params?.id])
 
   const handleEliminarCliente = async () => {
     if (confirm("¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.")) {
       setLoading(true)
-      const { error } = await supabase.from("clientes").delete().eq("id", params.id)
+      const { error } = await supabase.from("clientes").delete().eq("id", params.id as string)
 
       if (error) {
         console.error("Error al eliminar el cliente:", error)
@@ -152,7 +143,7 @@ export default function DetalleClientePage({ params }: { params: { id: string } 
                   </dd>
                 </div>
                 <div className="space-y-1">
-                  <dt className="text-sm font-medium text-muted-foreground">Correo Electrónico</dt>
+                  <dt className="text-sm font-medium text-muted-foreground">Correo</dt>
                   <dd className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     <span>{cliente.correo}</span>
@@ -163,28 +154,6 @@ export default function DetalleClientePage({ params }: { params: { id: string } 
                   <dd className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <span>{cliente.direccion}</span>
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>Resumen de Actividad</CardTitle></CardHeader>
-            <CardContent>
-              <dl className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <dt className="text-sm font-medium text-muted-foreground">Órdenes Totales</dt>
-                  <dd className="text-2xl font-bold">{cliente.ordenes.length}</dd>
-                </div>
-                <div className="space-y-1">
-                  <dt className="text-sm font-medium text-muted-foreground">Compras Totales</dt>
-                  <dd className="text-2xl font-bold">{cliente.compras.length}</dd>
-                </div>
-                <div className="space-y-1">
-                  <dt className="text-sm font-medium text-muted-foreground">Total Gastado</dt>
-                  <dd className="text-2xl font-bold">
-                    ${cliente.compras.reduce((sum: number, compra: any) => sum + compra.total, 0).toFixed(2)}
                   </dd>
                 </div>
               </dl>

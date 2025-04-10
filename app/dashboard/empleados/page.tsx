@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { getCurrentUserEmpresa } from "@/lib/empresa-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,12 +17,16 @@ export default function EmpleadosPage() {
   const [empleados, setEmpleados] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Cargar empleados desde Supabase
   useEffect(() => {
     const fetchEmpleados = async () => {
+      setLoading(true)
+      const empresa_id = await getCurrentUserEmpresa()
+
       const { data, error } = await supabase
-        .from("empleados")
-        .select("*")
+        .from("usuarios")
+        .select("id, nombre, rol, telefono, correo, fecha_contratacion, estado, direccion")
+        .eq("empresa_id", empresa_id)
+        .neq("rol", "admin")
         .order("fecha_contratacion", { ascending: false })
 
       if (error) {
@@ -91,7 +96,7 @@ export default function EmpleadosPage() {
             <TableBody>
               {empleadosFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No se encontraron empleados.
                   </TableCell>
                 </TableRow>
@@ -104,7 +109,7 @@ export default function EmpleadosPage() {
                     </TableCell>
                     <TableCell>{empleado.rol}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1 text-sm">
                         <div className="flex items-center">
                           <Phone className="mr-2 h-3 w-3 text-muted-foreground" />
                           {empleado.telefono}
@@ -115,7 +120,9 @@ export default function EmpleadosPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{empleado.fecha_contratacion || "—"}</TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {empleado.fecha_contratacion || "—"}
+                    </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={empleado.estado === "activo" ? "success" : "secondary"}>
                         {empleado.estado === "activo" ? "Activo" : "Inactivo"}

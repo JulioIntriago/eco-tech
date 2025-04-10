@@ -1,54 +1,62 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { getCurrentUserEmpresa } from "@/lib/empresa-utils"
 
-const recentOrders = [
-  {
-    id: "ORD-001",
-    cliente: "Juan Pérez",
-    dispositivo: "iPhone 12",
-    problema: "Pantalla rota",
-    estado: "En proceso",
-    fecha: "2023-05-15",
-  },
-  {
-    id: "ORD-002",
-    cliente: "María López",
-    dispositivo: "Samsung S21",
-    problema: "Batería",
-    estado: "Pendiente",
-    fecha: "2023-05-14",
-  },
-  {
-    id: "ORD-003",
-    cliente: "Carlos Ruiz",
-    dispositivo: "Xiaomi Mi 11",
-    problema: "No enciende",
-    estado: "Finalizado",
-    fecha: "2023-05-13",
-  },
-  {
-    id: "ORD-004",
-    cliente: "Ana Gómez",
-    dispositivo: "Motorola G9",
-    problema: "Micrófono",
-    estado: "Entregado",
-    fecha: "2023-05-12",
-  },
-  {
-    id: "ORD-005",
-    cliente: "Pedro Sánchez",
-    dispositivo: "iPhone 11",
-    problema: "Cámara",
-    estado: "En proceso",
-    fecha: "2023-05-11",
-  },
-]
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 
 export function RecentOrders() {
+  const [ordenes, setOrdenes] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchOrdenes = async () => {
+
+      const empresa_id = await getCurrentUserEmpresa() // 👈 esta es la línea correcta
+
+      const { data, error } = await supabase
+  .from("ordenes")
+  .select(`
+    id,
+    estado,
+    dispositivo,
+    cliente:cliente_id (nombre)
+  `)
+  
+  .eq("empresa_id", empresa_id) // 👈 Filtro por empresa
+  .order("fecha_ingreso", { ascending: false })
+  .limit(5)
+
+    
+
+
+      if (error) {
+        console.error("Error al cargar órdenes recientes:", error)
+      } else {
+        setOrdenes(data || [])
+      }
+    }
+
+    fetchOrdenes()
+  }, [])
+
+  const getEstadoVariant = (estado: string) => {
+    if (["Finalizado", "Entregado"].includes(estado)) return "success"
+    if (estado === "En proceso") return "default"
+    return "secondary"
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -56,8 +64,8 @@ export function RecentOrders() {
           <CardTitle>Órdenes Recientes</CardTitle>
           <CardDescription>Últimas 5 órdenes de reparación registradas</CardDescription>
         </div>
-        <Button variant="outline" size="sm">
-          Ver todas
+        <Button variant="outline" size="sm" asChild>
+          <a href="/dashboard/ordenes">Ver todas</a>
         </Button>
       </CardHeader>
       <CardContent>
@@ -72,36 +80,25 @@ export function RecentOrders() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recentOrders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-medium">{order.id}</TableCell>
-                <TableCell>{order.cliente}</TableCell>
-                <TableCell className="hidden md:table-cell">{order.dispositivo}</TableCell>
+            {ordenes.map((orden) => (
+              <TableRow key={orden.id}>
+                <TableCell className="font-medium">{orden.id.slice(0, 8)}</TableCell>
+                <TableCell>{orden.cliente?.nombre || "—"}</TableCell>
+                <TableCell className="hidden md:table-cell">{orden.dispositivo || "—"}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      order.estado === "Finalizado" || order.estado === "Entregado"
-                        ? "success"
-                        : order.estado === "En proceso"
-                          ? "default"
-                          : "secondary"
-                    }
-                  >
-                    {order.estado}
-                  </Badge>
+                  <Badge variant={getEstadoVariant(orden.estado)}>{orden.estado}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
                         <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Acciones</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                      <DropdownMenuItem>Editar orden</DropdownMenuItem>
-                      <DropdownMenuItem>Actualizar estado</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert("Ver detalles")}>Ver detalles</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert("Editar orden")}>Editar orden</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => alert("Actualizar estado")}>Actualizar estado</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -113,4 +110,3 @@ export function RecentOrders() {
     </Card>
   )
 }
-

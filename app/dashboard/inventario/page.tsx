@@ -50,7 +50,12 @@ export default function InventarioPage() {
     const fetchProductos = async () => {
       const { data, error } = await supabase
         .from("inventario")
-        .select("*")
+        .select(`
+    *,
+    proveedor:proveedor_id (
+      nombre
+    )
+  `)
         .order("nombre", { ascending: true })
 
       if (error) {
@@ -93,12 +98,16 @@ export default function InventarioPage() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            type="search"
-            placeholder="Buscar por nombre, ID o proveedor..."
-            className="w-full pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+  type="search"
+  placeholder="Buscar por nombre, ID o proveedor..."
+  className="w-full pl-8"
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  suppressHydrationWarning
+  spellCheck={false}
+
+/>
+
         </div>
         <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
           <SelectTrigger className="w-full sm:w-[180px]">
@@ -158,7 +167,7 @@ export default function InventarioPage() {
                           <Badge variant={getVariantForStock(estadoStock)}>{traducirEstadoStock(estadoStock)}</Badge>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">{producto.proveedor}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{producto.proveedor?.nombre || "—"}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/dashboard/inventario/${producto.id}`}>Ver detalles</Link>

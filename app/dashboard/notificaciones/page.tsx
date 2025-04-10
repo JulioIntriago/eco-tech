@@ -1,112 +1,110 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Bell, CheckCircle, AlertCircle, Package, ClipboardList, ShoppingCart, Calendar } from "lucide-react"
 
-// Datos de ejemplo para notificaciones
-const notificaciones = [
-  {
-    id: "NOT-001",
-    tipo: "alerta",
-    titulo: "Stock bajo de productos",
-    mensaje: "Hay 5 productos con stock bajo que requieren reposición.",
-    fecha: "2023-05-15 09:30",
-    leida: false,
-    accion: "/dashboard/inventario",
-    icono: Package,
-  },
-  {
-    id: "NOT-002",
-    tipo: "info",
-    titulo: "Nueva orden de trabajo",
-    mensaje: "Se ha registrado una nueva orden de trabajo: ORD-008.",
-    fecha: "2023-05-15 08:45",
-    leida: false,
-    accion: "/dashboard/ordenes/ORD-008",
-    icono: ClipboardList,
-  },
-  {
-    id: "NOT-003",
-    tipo: "exito",
-    titulo: "Venta completada",
-    mensaje: "Se ha completado la venta VTA-008 por $67.25.",
-    fecha: "2023-05-14 16:20",
-    leida: true,
-    accion: "/dashboard/ventas/VTA-008",
-    icono: ShoppingCart,
-  },
-  {
-    id: "NOT-004",
-    tipo: "info",
-    titulo: "Orden finalizada",
-    mensaje: "La orden ORD-003 ha sido marcada como finalizada.",
-    fecha: "2023-05-14 14:10",
-    leida: true,
-    accion: "/dashboard/ordenes/ORD-003",
-    icono: CheckCircle,
-  },
-  {
-    id: "NOT-005",
-    tipo: "alerta",
-    titulo: "Órdenes pendientes",
-    mensaje: "Hay 2 órdenes pendientes que requieren asignación de técnico.",
-    fecha: "2023-05-14 09:15",
-    leida: true,
-    accion: "/dashboard/ordenes",
-    icono: AlertCircle,
-  },
-  {
-    id: "NOT-006",
-    tipo: "info",
-    titulo: "Recordatorio de pago",
-    mensaje: "Recordatorio: El pago al proveedor TechParts Inc. vence mañana.",
-    fecha: "2023-05-13 15:30",
-    leida: true,
-    accion: "/dashboard/proveedores/PROV-001",
-    icono: Calendar,
-  },
-]
+// Mapeo de iconos desde string a componente
+const iconos: Record<string, any> = {
+  bell: Bell,
+  alerta: AlertCircle,
+  exito: CheckCircle,
+  paquete: Package,
+  orden: ClipboardList,
+  venta: ShoppingCart,
+  calendario: Calendar,
+}
 
 export default function NotificacionesPage() {
-  const [notificacionesData, setNotificacionesData] = useState(notificaciones)
+  const [notificacionesData, setNotificacionesData] = useState<any[]>([])
+  const [usuarioId, setUsuarioId] = useState<string | null>(null)
 
-  // Marcar todas como leídas
-  const marcarTodasLeidas = () => {
-    setNotificacionesData(
-      notificacionesData.map((notificacion) => ({
-        ...notificacion,
-        leida: true,
-      })),
+  useEffect(() => {
+    const fetchNotificaciones = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      setUsuarioId(user.id)
+
+      const { data, error } = await supabase
+        .from("notificaciones")
+        .select("*")
+        .eq("usuario_id", user.id)
+        .order("fecha_creacion", { ascending: false })
+
+      if (!error) {
+        setNotificacionesData(data || [])
+      } else {
+        console.error("Error al obtener notificaciones:", error)
+      }
+    }
+
+    fetchNotificaciones()
+  }, [])
+
+  // Realtime para notificaciones del usuario
+  useEffect(() => {
+    if (!usuarioId) return
+
+    const channel = supabase
+      .channel("realtime-notificaciones")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notificaciones",
+          filter: `usuario_id=eq.${usuarioId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setNotificacionesData((prev) => [payload.new, ...prev])
+          } else if (payload.eventType === "UPDATE") {
+            setNotificacionesData((prev) =>
+              prev.map((n) => (n.id === payload.new.id ? payload.new : n))
+            )
+          } else if (payload.eventType === "DELETE") {
+            setNotificacionesData((prev) =>
+              prev.filter((n) => n.id !== payload.old.id)
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [usuarioId])
+
+  const marcarTodasLeidas = async () => {
+    if (!usuarioId) return
+    await supabase.from("notificaciones").update({ leida: true }).eq("usuario_id", usuarioId)
+    setNotificacionesData((prev) => prev.map((n) => ({ ...n, leida: true })))
+  }
+
+  const marcarLeida = async (id: string) => {
+    await supabase.from("notificaciones").update({ leida: true }).eq("id", id)
+    setNotificacionesData((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, leida: true } : n))
     )
   }
 
-  // Marcar una notificación como leída
-  const marcarLeida = (id: string) => {
-    setNotificacionesData(
-      notificacionesData.map((notificacion) =>
-        notificacion.id === id ? { ...notificacion, leida: true } : notificacion,
-      ),
-    )
-  }
-
-  // Contar notificaciones no leídas
   const noLeidas = notificacionesData.filter((n) => !n.leida).length
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <DashboardHeader />
+      <DashboardHeader notificacionesNoLeidas={noLeidas} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold tracking-tight">Notificaciones</h2>
-          {noLeidas > 0 && (
-            <Badge variant="default" className="ml-2">
-              {noLeidas} nuevas
-            </Badge>
-          )}
+          {noLeidas > 0 && <Badge variant="default">{noLeidas} nuevas</Badge>}
         </div>
         {noLeidas > 0 && (
           <Button variant="outline" onClick={marcarTodasLeidas}>
@@ -132,13 +130,13 @@ export default function NotificacionesPage() {
               </div>
             ) : (
               notificacionesData.map((notificacion) => {
-                // Determinar el color del icono según el tipo
+                const Icon = iconos[notificacion.icono || "bell"] || Bell
                 const iconColor =
                   notificacion.tipo === "alerta"
                     ? "text-destructive"
                     : notificacion.tipo === "exito"
-                      ? "text-success"
-                      : "text-primary"
+                    ? "text-success"
+                    : "text-primary"
 
                 return (
                   <div
@@ -148,12 +146,14 @@ export default function NotificacionesPage() {
                     }`}
                   >
                     <div className={`mt-1 ${iconColor}`}>
-                      <notificacion.icono className="h-5 w-5" />
+                      <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">{notificacion.titulo}</h4>
-                        <span className="text-xs text-muted-foreground">{notificacion.fecha}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(notificacion.fecha_creacion).toLocaleString()}
+                        </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{notificacion.mensaje}</p>
                     </div>
@@ -163,9 +163,11 @@ export default function NotificacionesPage() {
                           Marcar como leída
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={notificacion.accion}>Ver detalles</a>
-                      </Button>
+                      {notificacion.enlace && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={notificacion.enlace}>Ver detalles</a>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )
@@ -177,4 +179,3 @@ export default function NotificacionesPage() {
     </div>
   )
 }
-

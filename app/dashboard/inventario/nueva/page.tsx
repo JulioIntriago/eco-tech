@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
@@ -23,32 +23,48 @@ export default function NuevoProductoPage() {
     categoria: "",
     precio: "",
     cantidad: "",
-    proveedor: "",
+    proveedor_id: "",
     descripcion: ""
   })
+  const [proveedores, setProveedores] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+
+  // Obtener proveedores desde Supabase
+  useEffect(() => {
+    const fetchProveedores = async () => {
+      const { data, error } = await supabase.from("proveedores").select("id, nombre")
+      if (!error) setProveedores(data || [])
+    }
+    fetchProveedores()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, categoria: value }))
+  const handleSelectChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     try {
+      // Obtener empresa_id del usuario actual
+      const { data: usuario } = await supabase.from("usuarios").select("empresa_id").eq("id", (await supabase.auth.getUser()).data.user?.id).single()
+
+      if (!usuario) throw new Error("No se pudo obtener la empresa del usuario")
+
       const { error } = await supabase.from("inventario").insert([
         {
           nombre: formData.nombre,
           categoria: formData.categoria,
           precio: parseFloat(formData.precio),
           cantidad: parseInt(formData.cantidad),
-          proveedor: formData.proveedor,
-          descripcion: formData.descripcion
+          proveedor_id: formData.proveedor_id || null,
+          descripcion: formData.descripcion,
+          empresa_id: usuario.empresa_id
         }
       ])
 
@@ -89,7 +105,7 @@ export default function NuevoProductoPage() {
 
             <div>
               <Label htmlFor="categoria">Categoría</Label>
-              <Select value={formData.categoria} onValueChange={handleSelectChange} required>
+              <Select value={formData.categoria} onValueChange={(value) => handleSelectChange("categoria", value)} required>
                 <SelectTrigger id="categoria">
                   <SelectValue placeholder="Selecciona una categoría" />
                 </SelectTrigger>
@@ -113,7 +129,16 @@ export default function NuevoProductoPage() {
 
             <div>
               <Label htmlFor="proveedor">Proveedor</Label>
-              <Input id="proveedor" name="proveedor" value={formData.proveedor} onChange={handleChange} required />
+              <Select value={formData.proveedor_id} onValueChange={(value) => handleSelectChange("proveedor_id", value)}>
+                <SelectTrigger id="proveedor">
+                  <SelectValue placeholder="Selecciona un proveedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {proveedores.map((prov) => (
+                    <SelectItem key={prov.id} value={prov.id}>{prov.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
