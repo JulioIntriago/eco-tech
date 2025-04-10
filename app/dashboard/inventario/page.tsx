@@ -10,10 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Upload, Download } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 
-// Categorías disponibles (ajústalas según tu base de datos si es necesario)
+import * as XLSX from "xlsx"
+import { saveAs } from "file-saver"
+
 const categorias = ["Todas", "Repuestos", "Accesorios", "Cables", "Audio", "Baterías"]
 
 function getEstadoStock(cantidad: number) {
@@ -44,70 +46,111 @@ export default function InventarioPage() {
   const [productos, setProductos] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [filtroCategoria, setFiltroCategoria] = useState("Todas")
+  const [filtroEstadoStock, setFiltroEstadoStock] = useState("todos")
   const [loading, setLoading] = useState(true)
 
+  const fetchProductos = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("inventario")
+      .select(`*, proveedor:proveedor_id(nombre)`)
+      .order("nombre", { ascending: true })
+
+    if (error) console.error("Error al cargar productos:", error)
+    else setProductos(data || [])
+
+    setLoading(false)
+  }
+
   useEffect(() => {
-    const fetchProductos = async () => {
-      const { data, error } = await supabase
-        .from("inventario")
-        .select(`
-    *,
-    proveedor:proveedor_id (
-      nombre
-    )
-  `)
-        .order("nombre", { ascending: true })
-
-      if (error) {
-        console.error("Error al cargar productos:", error)
-      } else {
-        setProductos(data || [])
-      }
-
-      setLoading(false)
-    }
-
     fetchProductos()
+
+    const channel = supabase
+      .channel("realtime-inventario")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "inventario",
+      }, () => {
+        fetchProductos()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const productosFiltrados = productos.filter((producto) => {
+    const estadoStock = getEstadoStock(producto.cantidad)
+
     const matchesSearch =
       producto.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       producto.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      producto.proveedor?.toLowerCase().includes(searchQuery.toLowerCase())
+      producto.proveedor?.nombre?.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesCategoria = filtroCategoria === "Todas" || producto.categoria === filtroCategoria
+    const matchesEstadoStock =
+      filtroEstadoStock === "todos" ||
+      (filtroEstadoStock === "normal" && estadoStock === "normal") ||
+      (filtroEstadoStock === "bajo" && estadoStock === "bajo") ||
+      (filtroEstadoStock === "agotado" && estadoStock === "agotado")
 
-    return matchesSearch && matchesCategoria
+    return matchesSearch && matchesCategoria && matchesEstadoStock
   })
+
+  const totalProductos = productos.length
+  const productosAgotados = productos.filter((p) => p.cantidad === 0).length
+  const productosBajoStock = productos.filter((p) => p.cantidad > 0 && p.cantidad <= 3).length
+  const valorInventario = productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0)
+  const exportarExcel = async () => {
+    try {
+      const { utils, write, writeFile } = await import("xlsx")
+      const { saveAs } = await import("file-saver")
+  
+      const data = productosFiltrados.map((p) => ({
+        ID: p.id,
+        Producto: p.nombre,
+        Categoría: p.categoria,
+        Precio: p.precio,
+        Stock: p.cantidad,
+        Proveedor: p.proveedor?.nombre || "—",
+      }))
+  
+      const ws = utils.json_to_sheet(data)
+      const wb = utils.book_new()
+      utils.book_append_sheet(wb, ws, "Inventario")
+  
+      const excelBuffer = write(wb, { bookType: "xlsx", type: "array" })
+      const blob = new Blob([excelBuffer], { type: "application/octet-stream" })
+      saveAs(blob, `inventario_${new Date().toISOString()}.xlsx`)
+    } catch (error) {
+      console.error("Error al exportar Excel:", error)
+      alert("No se pudo exportar el archivo. Asegúrate de tener las dependencias instaladas.")
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <DashboardHeader />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Inventario</h2>
-        <Button asChild>
-          <Link href="/dashboard/inventario/nueva">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Producto
-          </Link>
-        </Button>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total de Productos</p><p className="text-2xl font-bold">{totalProductos}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Agotados</p><p className="text-2xl font-bold">{productosAgotados}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Bajo Stock</p><p className="text-2xl font-bold">{productosBajoStock}</p></CardContent></Card>
+        <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Valor del Inventario</p><p className="text-2xl font-bold">${valorInventario.toFixed(2)}</p></CardContent></Card>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-  type="search"
-  placeholder="Buscar por nombre, ID o proveedor..."
-  className="w-full pl-8"
-  value={searchQuery}
-  onChange={(e) => setSearchQuery(e.target.value)}
-  suppressHydrationWarning
-  spellCheck={false}
-
-/>
-
+            type="search"
+            placeholder="Buscar por nombre, ID o proveedor..."
+            className="w-full pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
         <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
           <SelectTrigger className="w-full sm:w-[180px]">
@@ -115,18 +158,44 @@ export default function InventarioPage() {
           </SelectTrigger>
           <SelectContent>
             {categorias.map((categoria) => (
-              <SelectItem key={categoria} value={categoria}>
-                {categoria}
-              </SelectItem>
+              <SelectItem key={categoria} value={categoria}>{categoria}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={filtroEstadoStock} onValueChange={setFiltroEstadoStock}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Filtrar por estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="normal">En Stock</SelectItem>
+            <SelectItem value="bajo">Stock Bajo</SelectItem>
+            <SelectItem value="agotado">Agotado</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Listado de Productos</CardTitle>
-          <CardDescription>Gestiona el inventario de productos y repuestos</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Listado de Productos</CardTitle>
+              <CardDescription>Gestiona el inventario de productos y repuestos</CardDescription>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={exportarExcel} variant="outline">
+                <Download className="mr-2 h-4 w-4" /> Exportar Excel
+              </Button>
+              <Button variant="outline">
+                <Upload className="mr-2 h-4 w-4" /> Importar Excel
+              </Button>
+              <Button asChild>
+                <Link href="/dashboard/inventario/nueva">
+                  <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
+                </Link>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -148,9 +217,7 @@ export default function InventarioPage() {
                 </TableRow>
               ) : productosFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
-                    No se encontraron productos que coincidan con los criterios de búsqueda.
-                  </TableCell>
+                  <TableCell colSpan={7} className="text-center">No se encontraron productos.</TableCell>
                 </TableRow>
               ) : (
                 productosFiltrados.map((producto) => {

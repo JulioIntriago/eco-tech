@@ -48,12 +48,13 @@ export default function ClientesPage() {
     const fetchClientes = async () => {
       try {
         const empresa_id = await getCurrentUserEmpresa()
-
+  
         const { data, error } = await supabase
-          .from("clientes")
+          .from("clientes_resumen")
           .select("*")
           .eq("empresa_id", empresa_id)
-
+          .eq("estado", "activo") // ← Solo clientes ctivos
+  
         if (error) throw error
         setClientes(data || [])
       } catch (error: any) {
@@ -62,9 +63,11 @@ export default function ClientesPage() {
         setLoading(false)
       }
     }
-
+  
     fetchClientes()
   }, [])
+  
+
 
   const clientesFiltrados = clientes.filter((cliente) =>
     cliente.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -11,26 +11,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/layout.js"
     ],
-    "/dashboard/configuracion/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/configuracion/loading.js"
-    ],
-    "/dashboard/configuracion/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/configuracion/page.js"
-    ],
-    "/dashboard/ordenes/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/loading.js"
-    ],
-    "/dashboard/ordenes/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/page.js"
-    ],
     "/dashboard/inventario/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -56,45 +36,105 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/ventas/page.js"
     ],
-    "/dashboard/ventas/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ventas/[id]/page.js"
-    ],
     "/dashboard/clientes/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/clientes/loading.js"
-    ],
-    "/dashboard/clientes/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/clientes/[id]/page.js"
     ],
     "/dashboard/clientes/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/clientes/page.js"
     ],
-    "/dashboard/ordenes/[id]/page": [
+    "/dashboard/ordenes/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/[id]/page.js"
+      "static/chunks/app/dashboard/ordenes/loading.js"
     ],
-    "/dashboard/ventas/[id]/editar/page": [
+    "/dashboard/ordenes/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ventas/[id]/editar/page.js"
+      "static/chunks/app/dashboard/ordenes/page.js"
+    ],
+    "/dashboard/clientes/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/clientes/[id]/page.js"
+    ],
+    "/dashboard/ventas/nueva/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/ventas/nueva/loading.js"
+    ],
+    "/dashboard/ventas/nueva/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/ventas/nueva/page.js"
     ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
+    "/dashboard/proveedores/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/proveedores/loading.js"
+    ],
+    "/dashboard/proveedores/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/proveedores/page.js"
+    ],
+    "/dashboard/empleados/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/empleados/loading.js"
+    ],
+    "/dashboard/empleados/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/empleados/page.js"
+    ],
+    "/dashboard/notificaciones/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/notificaciones/loading.js"
+    ],
+    "/dashboard/notificaciones/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/notificaciones/page.js"
+    ],
+    "/dashboard/proveedores/nuevo/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/proveedores/nuevo/page.js"
+    ],
+    "/dashboard/proveedores/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/proveedores/[id]/page.js"
+    ],
     "/dashboard/inventario/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/inventario/[id]/page.js"
+    ],
+    "/dashboard/configuracion/loading": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/configuracion/loading.js"
+    ],
+    "/dashboard/configuracion/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/configuracion/page.js"
+    ],
+    "/dashboard/empleados/nuevo/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/empleados/nuevo/page.js"
     ]
   }
 }

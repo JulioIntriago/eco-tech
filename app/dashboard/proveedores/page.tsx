@@ -5,8 +5,21 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Phone, Mail } from "lucide-react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
@@ -21,17 +34,45 @@ export default function ProveedoresPage() {
     setMounted(true)
 
     const fetchProveedores = async () => {
-      const { data, error } = await supabase
+      const { data: proveedoresBase, error } = await supabase
         .from("proveedores")
         .select("*")
         .order("nombre", { ascending: true })
 
       if (error) {
         console.error("Error al cargar proveedores:", error)
-      } else {
-        setProveedores(data || [])
+        return
       }
 
+      // Enriquecer con productos y última compra
+      const proveedoresConExtras = await Promise.all(
+        (proveedoresBase || []).map(async (proveedor) => {
+          // Cantidad de productos
+          const { count } = await supabase
+            .from("inventario")
+            .select("*", { count: "exact", head: true })
+            .eq("proveedor_id", proveedor.id)
+
+          // Última compra
+          const { data: ultimaCompra } = await supabase
+            .from("inventario")
+            .select("creado_en")
+            .eq("proveedor_id", proveedor.id)
+            .order("creado_en", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          return {
+            ...proveedor,
+            productos: count ?? 0,
+            ultima_compra: ultimaCompra?.creado_en
+              ? new Date(ultimaCompra.creado_en).toLocaleDateString()
+              : null,
+          }
+        })
+      )
+
+      setProveedores(proveedoresConExtras)
       setLoading(false)
     }
 
@@ -47,7 +88,7 @@ export default function ProveedoresPage() {
       proveedor.id?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  if (!mounted) return null // 👉 evitar render hasta que esté montado
+  if (!mounted) return null
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -96,7 +137,9 @@ export default function ProveedoresPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Cargando proveedores...</TableCell>
+                  <TableCell colSpan={7} className="text-center">
+                    Cargando proveedores...
+                  </TableCell>
                 </TableRow>
               ) : proveedoresFiltrados.length === 0 ? (
                 <TableRow>

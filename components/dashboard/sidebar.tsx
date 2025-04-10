@@ -18,11 +18,11 @@ import {
   Settings,
   LogOut,
   Menu,
-  Smartphone,
   Truck,
   Bell,
 } from "lucide-react"
 
+// Lista de enlaces visibles por rol
 const allLinks = [
   { title: "Dashboard", href: "/dashboard", icon: BarChart3, roles: ["admin", "tecnico", "vendedor"] },
   { title: "Órdenes de Trabajo", href: "/dashboard/ordenes", icon: ClipboardList, roles: ["admin", "tecnico"] },
@@ -39,6 +39,7 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const { isOpen, setIsOpen, isMobile } = useSidebar()
 
+  // Sidebar móvil
   if (isMobile) {
     return (
       <>
@@ -60,8 +61,9 @@ export function DashboardSidebar() {
     )
   }
 
+  // Sidebar de escritorio
   return (
-    <div className={cn("h-screen border-r bg-background transition-all duration-300", isOpen ? "w-64" : "w-16")}> 
+    <div className={cn("h-screen border-r bg-background transition-all duration-300", isOpen ? "w-64" : "w-16")}>
       <SidebarContent pathname={pathname} isCollapsed={!isOpen} />
     </div>
   )
@@ -69,8 +71,8 @@ export function DashboardSidebar() {
 
 function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; isCollapsed?: boolean }) {
   const router = useRouter()
-  const [logoUrl, setLogoUrl] = useState("")
-  const [nombreEmpresa, setNombreEmpresa] = useState("Eco_Tech")
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [nombreEmpresa, setNombreEmpresa] = useState<string | null>(null)
   const [rolUsuario, setRolUsuario] = useState<string | null>(null)
 
   useEffect(() => {
@@ -79,37 +81,28 @@ function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; i
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
-  
-      // 🔍 Buscar primero en usuarios
-      const { data: empleadoPerfil } = await supabase
+
+      // Obtener rol del usuario
+      const { data: perfil } = await supabase
         .from("usuarios")
         .select("rol")
         .eq("id", user.id)
         .maybeSingle()
 
+      if (perfil?.rol) setRolUsuario(perfil.rol)
 
-        // 👤 Si no es empleado, buscar en usuarios
-        const { data: usuarioPerfil } = await supabase
-        .from("usuarios")
-        .select("rol")
-        .eq("id", user.id)
-        .maybeSingle()
-  
-      if (usuarioPerfil?.rol) setRolUsuario(usuarioPerfil.rol)
-  
-      // 🏢 Configuración de empresa (logo y nombre)
+      // Obtener configuración de la empresa actual (usando empresa_id si aplica)
       const { data: config } = await supabase
         .from("configuracion")
         .select("logo, nombre_empresa")
         .maybeSingle()
-  
+
       if (config?.logo) setLogoUrl(config.logo)
       if (config?.nombre_empresa) setNombreEmpresa(config.nombre_empresa)
     }
-  
+
     fetchData()
   }, [])
-  
 
   const linksVisibles = rolUsuario ? allLinks.filter((l) => l.roles.includes(rolUsuario)) : []
 
@@ -120,9 +113,14 @@ function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; i
           {logoUrl ? (
             <Image src={logoUrl} alt="Logo" width={32} height={32} className="rounded-md object-contain" />
           ) : (
-            <Smartphone className="h-6 w-6 text-primary" />
+            // 🔁 Mostrar solo si no hay logo configurado
+            <div className="h-8 w-8 rounded-md bg-muted" />
           )}
-          {!isCollapsed && <span className="text-lg font-bold">{nombreEmpresa}</span>}
+          {!isCollapsed && (
+            <span className="text-lg font-bold">
+              {nombreEmpresa ?? "" /* Se evita mostrar texto fijo como Eco_Tech */}
+            </span>
+          )}
         </Link>
       </div>
 
@@ -135,7 +133,7 @@ function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; i
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
                 pathname === link.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                isCollapsed && "justify-center px-0",
+                isCollapsed && "justify-center px-0"
               )}
             >
               <link.icon className="h-5 w-5" />

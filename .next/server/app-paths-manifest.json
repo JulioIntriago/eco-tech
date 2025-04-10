@@ -1,7 +1,7 @@
 {
-  "/dashboard/ventas/[id]/page": "app/dashboard/ventas/[id]/page.js",
-  "/dashboard/ordenes/page": "app/dashboard/ordenes/page.js",
-  "/dashboard/inventario/page": "app/dashboard/inventario/page.js",
-  "/dashboard/inventario/[id]/page": "app/dashboard/inventario/[id]/page.js",
-  "/dashboard/ventas/page": "app/dashboard/ventas/page.js"
+  "/dashboard/proveedores/[id]/page": "app/dashboard/proveedores/[id]/page.js",
+  "/dashboard/notificaciones/page": "app/dashboard/notificaciones/page.js",
+  "/dashboard/configuracion/page": "app/dashboard/configuracion/page.js",
+  "/dashboard/empleados/page": "app/dashboard/empleados/page.js",
+  "/dashboard/empleados/nuevo/page": "app/dashboard/empleados/nuevo/page.js"
 }

@@ -49,7 +49,7 @@ export default function DetalleClientePage() {
         .single()
 
       if (errorCliente) {
-        console.error("Error al obtener cliente:", errorCliente)
+        console.error("Error al obtener cliente:", errorCliente?.message || errorCliente)
         setCargando(false)
         return
       }
@@ -75,22 +75,34 @@ export default function DetalleClientePage() {
 
     if (params?.id) fetchCliente()
   }, [params?.id])
-
   const handleEliminarCliente = async () => {
-    if (confirm("¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.")) {
-      setLoading(true)
-      const { error } = await supabase.from("clientes").delete().eq("id", params.id as string)
-
-      if (error) {
-        console.error("Error al eliminar el cliente:", error)
-        alert("Error al eliminar el cliente")
-        setLoading(false)
-        return
-      }
-
+    const confirmacion = confirm("¿Deseas archivar este cliente? Esto ocultará su información pero no lo eliminará.")
+    if (!confirmacion) return
+  
+    setLoading(true)
+    console.log("ID recibido para archivar:", params.id)
+  
+    try {
+      const { data, error } = await supabase
+        .from("clientes")
+        .update({ estado: "inactivo" })
+        .eq("id", params.id as string)
+        .select() // esto solo para ver si realmente se actualiza algo
+  
+      console.log("Resultado del update:", data)
+  
+      if (error) throw error
+      if (!data || data.length === 0) throw new Error("No se actualizó ningún cliente. ID no encontrado.")
+  
       router.push("/dashboard/clientes")
+    } catch (error: any) {
+      console.error("Error al archivar cliente:", error)
+      alert("No se pudo archivar el cliente. Revisa consola.")
+    } finally {
+      setLoading(false)
     }
   }
+  
 
   if (cargando || !cliente) {
     return <div className="p-6">Cargando datos del cliente...</div>
@@ -118,7 +130,7 @@ export default function DetalleClientePage() {
           </Button>
           <Button variant="destructive" size="sm" onClick={handleEliminarCliente} disabled={loading}>
             <Trash className="mr-2 h-4 w-4" />
-            Eliminar
+            Archivar
           </Button>
         </div>
       </div>

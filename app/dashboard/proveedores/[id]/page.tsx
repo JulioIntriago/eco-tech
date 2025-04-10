@@ -39,16 +39,34 @@ export default function ProveedorDetallePage() {
 
   const handleEliminar = async () => {
     if (!confirm("¿Estás seguro de eliminar este proveedor?")) return
-    const { error } = await supabase.from("proveedores").delete().eq("id", proveedor.id)
+  
+    // 1. Eliminar productos asociados (opcional en desarrollo)
+    const { error: errorProductos } = await supabase
+      .from("inventario")
+      .delete()
+      .eq("proveedor_id", proveedor.id)
+  
+    if (errorProductos) {
+      alert("No se pudieron eliminar los productos asociados.")
+      console.error("Error al eliminar productos:", errorProductos)
+      return
+    }
+  
+    // 2. Eliminar proveedor
+    const { error } = await supabase
+      .from("proveedores")
+      .delete()
+      .eq("id", proveedor.id)
+  
     if (!error) {
-      alert("Proveedor eliminado")
+      alert("Proveedor eliminado correctamente.")
       router.push("/dashboard/proveedores")
     } else {
-      alert("Error al eliminar proveedor")
-      console.error(error)
+      alert("Error al eliminar proveedor.")
+      console.error("Error al eliminar proveedor:", error)
     }
   }
-
+  
   if (loading || !proveedor) {
     return <div className="p-6">Cargando proveedor...</div>
   }

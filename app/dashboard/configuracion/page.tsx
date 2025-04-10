@@ -7,9 +7,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Smartphone, Save } from "lucide-react"
@@ -40,19 +57,14 @@ export default function ConfiguracionPage() {
     moneda: "EC",
     impuesto: "12",
     prefijo: "ECO-",
-    terminosPago: "Pago al contado o con tarjeta. No se aceptan devoluciones después de 15 días.",
+    terminosPago:
+      "Pago al contado o con tarjeta. No se aceptan devoluciones después de 15 días.",
     notaFactura: "Gracias por su preferencia.",
-  })
-
-  const [configUsuarios, setConfigUsuarios] = useState({
-    permitirRegistro: false,
-    aprobacionManual: true,
-    rolPredeterminado: "vendedor",
   })
 
   useEffect(() => {
     const fetchConfig = async () => {
-      const { data, error } = await supabase.from("configuracion").select("*").maybeSingle()
+      const { data } = await supabase.from("configuracion").select("*").maybeSingle()
       if (data) {
         setConfigId(data.id)
         setConfigGeneral({
@@ -76,11 +88,6 @@ export default function ConfiguracionPage() {
           prefijo: data.prefijo || "",
           terminosPago: data.terminos_pago || "",
           notaFactura: data.nota_factura || "",
-        })
-        setConfigUsuarios({
-          permitirRegistro: data.permitir_registro,
-          aprobacionManual: data.aprobacion_manual,
-          rolPredeterminado: data.rol_predeterminado || "vendedor",
         })
       }
       setIsLoading(false)
@@ -108,16 +115,8 @@ export default function ConfiguracionPage() {
     setConfigFacturacion((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (section: string, name: string, value: string) => {
-    if (section === "facturacion") {
-      setConfigFacturacion((prev) => ({ ...prev, [name]: value }))
-    } else if (section === "usuarios") {
-      setConfigUsuarios((prev) => ({ ...prev, [name]: value }))
-    }
-  }
-
-  const handleUsuariosChange = (name: string, value: boolean | string) => {
-    setConfigUsuarios((prev) => ({ ...prev, [name]: value }))
+  const handleSelectChange = (name: string, value: string) => {
+    setConfigFacturacion((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleFileUpload = async () => {
@@ -150,9 +149,6 @@ export default function ConfiguracionPage() {
         prefijo: configFacturacion.prefijo,
         terminos_pago: configFacturacion.terminosPago,
         nota_factura: configFacturacion.notaFactura,
-        permitir_registro: configUsuarios.permitirRegistro,
-        aprobacion_manual: configUsuarios.aprobacionManual,
-        rol_predeterminado: configUsuarios.rolPredeterminado,
       }
 
       const { error } = configId
@@ -186,14 +182,14 @@ export default function ConfiguracionPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notificaciones">Notificaciones</TabsTrigger>
           <TabsTrigger value="facturacion">Facturación</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
+          <TabsTrigger value="usuarios">Seguridad</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
           <Card>
             <CardHeader>
-              <CardTitle>Información de la Empresa</CardTitle>
-              <CardDescription>Configura la información básica del negocio</CardDescription>
+              <CardTitle>Configuración General</CardTitle>
+              <CardDescription>Información básica de tu empresa</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {configGeneral.logo && (
@@ -235,30 +231,28 @@ export default function ConfiguracionPage() {
           <Card>
             <CardHeader>
               <CardTitle>Notificaciones</CardTitle>
-              <CardDescription>Opciones de alertas automáticas por correo</CardDescription>
+              <CardDescription>Configura alertas del sistema</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Correo de Notificaciones</Label>
-                <Input value={configNotificaciones.correoNotificaciones} onChange={(e) => handleNotificacionesChange("correoNotificaciones", e.target.value)} />
-              </div>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="flex justify-between items-center">
-                  <Label>Stock Bajo</Label>
-                  <Switch checked={configNotificaciones.notificarStockBajo} onCheckedChange={(val) => handleNotificacionesChange("notificarStockBajo", val)} />
+              {["notificarStockBajo", "notificarNuevasOrdenes", "notificarVentas", "notificarPagos"].map((key) => (
+                <div key={key} className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor={key}>{key.replace("notificar", "Notificar ")}</Label>
+                  </div>
+                  <Switch
+                    id={key}
+                    checked={configNotificaciones[key as keyof typeof configNotificaciones] as boolean}
+                    onCheckedChange={(value) => handleNotificacionesChange(key, value)}
+                  />
                 </div>
-                <div className="flex justify-between items-center">
-                  <Label>Nuevas Órdenes</Label>
-                  <Switch checked={configNotificaciones.notificarNuevasOrdenes} onCheckedChange={(val) => handleNotificacionesChange("notificarNuevasOrdenes", val)} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <Label>Ventas</Label>
-                  <Switch checked={configNotificaciones.notificarVentas} onCheckedChange={(val) => handleNotificacionesChange("notificarVentas", val)} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <Label>Pagos</Label>
-                  <Switch checked={configNotificaciones.notificarPagos} onCheckedChange={(val) => handleNotificacionesChange("notificarPagos", val)} />
-                </div>
+              ))}
+              <div className="pt-4 space-y-2">
+                <Label>Correo para Notificaciones</Label>
+                <Input
+                  type="email"
+                  value={configNotificaciones.correoNotificaciones}
+                  onChange={(e) => handleNotificacionesChange("correoNotificaciones", e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -268,13 +262,13 @@ export default function ConfiguracionPage() {
           <Card>
             <CardHeader>
               <CardTitle>Facturación</CardTitle>
-              <CardDescription>Configuración de impuestos, prefijos y notas</CardDescription>
+              <CardDescription>Parámetros de facturación del sistema</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Moneda</Label>
-                  <Select value={configFacturacion.moneda} onValueChange={(val) => handleSelectChange("facturacion", "moneda", val)}>
+                  <Select value={configFacturacion.moneda} onValueChange={(val) => handleSelectChange("moneda", val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona una moneda" />
                     </SelectTrigger>
@@ -282,6 +276,7 @@ export default function ConfiguracionPage() {
                       <SelectItem value="MXN">MXN</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="EC">EC</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -309,30 +304,25 @@ export default function ConfiguracionPage() {
         <TabsContent value="usuarios">
           <Card>
             <CardHeader>
-              <CardTitle>Usuarios</CardTitle>
-              <CardDescription>Configuraciones para nuevos registros</CardDescription>
+              <CardTitle>Seguridad de Usuarios</CardTitle>
+              <CardDescription>Define políticas de seguridad para tu equipo</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="flex justify-between items-center">
-                  <Label>Permitir Registro</Label>
-                  <Switch checked={configUsuarios.permitirRegistro} onCheckedChange={(val) => handleUsuariosChange("permitirRegistro", val)} />
-                </div>
-                <div className="flex justify-between items-center">
-                  <Label>Aprobación Manual</Label>
-                  <Switch checked={configUsuarios.aprobacionManual} onCheckedChange={(val) => handleUsuariosChange("aprobacionManual", val)} />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="tiempoSesion">Tiempo de Sesión Inactiva (minutos)</Label>
+                <Input id="tiempoSesion" type="number" defaultValue="60" />
+                <p className="text-xs text-muted-foreground">Tiempo de inactividad antes de cerrar sesión automáticamente</p>
               </div>
-              <div>
-                <Label>Rol Predeterminado</Label>
-                <Select value={configUsuarios.rolPredeterminado} onValueChange={(val) => handleSelectChange("usuarios", "rolPredeterminado", val)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un rol" />
+              <div className="space-y-2">
+                <Label htmlFor="politicaContrasenas">Política de Contraseñas</Label>
+                <Select defaultValue="media">
+                  <SelectTrigger id="politicaContrasenas">
+                    <SelectValue placeholder="Selecciona una política" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="tecnico">Técnico</SelectItem>
-                    <SelectItem value="vendedor">Vendedor</SelectItem>
+                    <SelectItem value="baja">Básica (mínimo 6 caracteres)</SelectItem>
+                    <SelectItem value="media">Media (mínimo 8 caracteres, incluir números)</SelectItem>
+                    <SelectItem value="alta">Alta (mínimo 10 caracteres, incluir números y símbolos)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
