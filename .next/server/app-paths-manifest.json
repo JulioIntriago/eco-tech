@@ -1,7 +1,7 @@
 {
-  "/dashboard/proveedores/[id]/page": "app/dashboard/proveedores/[id]/page.js",
-  "/dashboard/notificaciones/page": "app/dashboard/notificaciones/page.js",
+  "/dashboard/clientes/page": "app/dashboard/clientes/page.js",
+  "/dashboard/proveedores/page": "app/dashboard/proveedores/page.js",
   "/dashboard/configuracion/page": "app/dashboard/configuracion/page.js",
-  "/dashboard/empleados/page": "app/dashboard/empleados/page.js",
-  "/dashboard/empleados/nuevo/page": "app/dashboard/empleados/nuevo/page.js"
+  "/dashboard/empleados/[id]/page": "app/dashboard/empleados/[id]/page.js",
+  "/dashboard/empleados/page": "app/dashboard/empleados/page.js"
 }

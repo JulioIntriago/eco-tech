@@ -8,6 +8,7 @@ import { useSidebar } from "./sidebar-provider"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { useConfiguracion } from "@/app/dashboard/context/configuracion-context"
 import Image from "next/image"
 import {
   BarChart3,
@@ -22,7 +23,6 @@ import {
   Bell,
 } from "lucide-react"
 
-// Lista de enlaces visibles por rol
 const allLinks = [
   { title: "Dashboard", href: "/dashboard", icon: BarChart3, roles: ["admin", "tecnico", "vendedor"] },
   { title: "Órdenes de Trabajo", href: "/dashboard/ordenes", icon: ClipboardList, roles: ["admin", "tecnico"] },
@@ -39,7 +39,6 @@ export function DashboardSidebar() {
   const pathname = usePathname()
   const { isOpen, setIsOpen, isMobile } = useSidebar()
 
-  // Sidebar móvil
   if (isMobile) {
     return (
       <>
@@ -61,7 +60,6 @@ export function DashboardSidebar() {
     )
   }
 
-  // Sidebar de escritorio
   return (
     <div className={cn("h-screen border-r bg-background transition-all duration-300", isOpen ? "w-64" : "w-16")}>
       <SidebarContent pathname={pathname} isCollapsed={!isOpen} />
@@ -71,18 +69,21 @@ export function DashboardSidebar() {
 
 function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; isCollapsed?: boolean }) {
   const router = useRouter()
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [nombreEmpresa, setNombreEmpresa] = useState<string | null>(null)
+  const configuracion = useConfiguracion()
+
+  // ✅ Asegura que no explote si configuracion es undefined
+  const logo = configuracion?.logo || ""
+  const nombre_empresa = configuracion?.nombre_empresa || ""
+
   const [rolUsuario, setRolUsuario] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchRol = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
 
-      // Obtener rol del usuario
       const { data: perfil } = await supabase
         .from("usuarios")
         .select("rol")
@@ -90,18 +91,9 @@ function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; i
         .maybeSingle()
 
       if (perfil?.rol) setRolUsuario(perfil.rol)
-
-      // Obtener configuración de la empresa actual (usando empresa_id si aplica)
-      const { data: config } = await supabase
-        .from("configuracion")
-        .select("logo, nombre_empresa")
-        .maybeSingle()
-
-      if (config?.logo) setLogoUrl(config.logo)
-      if (config?.nombre_empresa) setNombreEmpresa(config.nombre_empresa)
     }
 
-    fetchData()
+    fetchRol()
   }, [])
 
   const linksVisibles = rolUsuario ? allLinks.filter((l) => l.roles.includes(rolUsuario)) : []
@@ -110,15 +102,14 @@ function SidebarContent({ pathname, isCollapsed = false }: { pathname: string; i
     <div className="flex h-full flex-col">
       <div className="flex h-14 items-center border-b px-3 py-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          {logoUrl ? (
-            <Image src={logoUrl} alt="Logo" width={32} height={32} className="rounded-md object-contain" />
+          {logo ? (
+            <Image src={logo} alt="Logo" width={32} height={32} className="rounded-md object-contain" />
           ) : (
-            // 🔁 Mostrar solo si no hay logo configurado
             <div className="h-8 w-8 rounded-md bg-muted" />
           )}
           {!isCollapsed && (
-            <span className="text-lg font-bold">
-              {nombreEmpresa ?? "" /* Se evita mostrar texto fijo como Eco_Tech */}
+            <span className="text-lg font-bold truncate max-w-[140px]">
+              {nombre_empresa}
             </span>
           )}
         </Link>

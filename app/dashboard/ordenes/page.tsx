@@ -10,7 +10,9 @@ import { Plus, Search } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getUserPerfil } from "@/lib/user-utils";
+import { traducirEstado, getEstadoBadgeVariant } from "@/lib/estado-utils"
 
 interface OrdenRaw {
   id: string;
@@ -45,10 +47,7 @@ export default function OrdenesPage() {
   const fetchOrdenes = async () => {
     try {
       const perfil = await getUserPerfil();
-      if (!perfil) {
-        console.error("No se encontró el perfil del usuario.");
-        return;
-      }
+      if (!perfil) return;
 
       const { rol, id: perfil_id, empresa_id } = perfil;
 
@@ -64,11 +63,9 @@ export default function OrdenesPage() {
 
       if (error) throw error;
 
-      const ordenesFiltradas = (data as unknown as OrdenRaw[]).filter((orden) => {
-        return rol === "tecnico" ? orden.empleados?.id === perfil_id : true;
-      });
-
-      const ordenesMapeadas = ordenesFiltradas.map((orden) => ({
+      const ordenesMapeadas = (data as unknown as OrdenRaw[]).filter((orden) =>
+        rol === "tecnico" ? orden.empleados?.id === perfil_id : true
+      ).map((orden) => ({
         id: orden.id,
         cliente: orden.clientes?.nombre || "Sin cliente",
         dispositivo: orden.dispositivo,
@@ -82,40 +79,31 @@ export default function OrdenesPage() {
       }));
 
       setOrdenes(ordenesMapeadas);
-    } catch (error: any) {
-      console.error("Error al cargar órdenes:", JSON.stringify(error, null, 2));
-      alert("Error al cargar órdenes. Revisa la consola.");
+    } catch (error) {
+      console.error("Error al cargar órdenes:", error);
     }
   };
 
   useEffect(() => {
     fetchOrdenes();
-
-    const canal = supabase
-      .channel("ordenes_realtime")
+    const canal = supabase.channel("ordenes_realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "ordenes" }, fetchOrdenes)
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(canal);
-    };
+    return () => { supabase.removeChannel(canal); };
   }, []);
 
-  const ordenesFiltradas = ordenes.filter((orden) => {
-    const search = searchQuery.toLowerCase();
-    return (
-      orden.id.toLowerCase().includes(search) ||
-      orden.cliente.toLowerCase().includes(search) ||
-      orden.dispositivo.toLowerCase().includes(search) ||
-      orden.problema.toLowerCase().includes(search)
-    );
-  });
+  const ordenesFiltradas = ordenes.filter((orden) =>
+    [orden.id, orden.cliente, orden.dispositivo, orden.problema].some(val =>
+      val.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
-  const getEstadoVariant = (estado: string): "secondary" | "default" | "success" | "outline" => {
-    if (estado === "pendiente") return "secondary";
-    if (estado === "en_proceso") return "default";
-    if (estado === "finalizado") return "success";
-    return "outline";
+  const actualizarEstado = async (id: string, nuevoEstado: string) => {
+    const { error } = await supabase.from("ordenes").update({ estado: nuevoEstado }).eq("id", id);
+    if (!error) {
+      setOrdenes((prev) => prev.map((o) => o.id === id ? { ...o, estado: nuevoEstado } : o));
+    } else {
+      alert("Error al actualizar el estado");
+    }
   };
 
   const getPrioridadVariant = (prioridad: string): "outline" | "secondary" | "destructive" => {
@@ -151,7 +139,7 @@ export default function OrdenesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Listado de Órdenes</CardTitle>
-          <CardDescription>Gestiona las órdenes de reparación de dispositivos</CardDescription>
+          <CardDescription>Gestiona las órdenes de reparación</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -168,36 +156,57 @@ export default function OrdenesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ordenesFiltradas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    No se encontraron órdenes.
+              {ordenesFiltradas.map((orden) => (
+                <TableRow key={orden.id}>
+                  <TableCell>{orden.id.slice(0, 8)}</TableCell>
+                  <TableCell>{orden.cliente}</TableCell>
+                  <TableCell className="hidden md:table-cell">{orden.dispositivo}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{orden.problema}</TableCell>
+
+                  <TableCell>
+                    
+  <Select value={orden.estado} onValueChange={(val) => actualizarEstado(orden.id, val)}>
+  <SelectTrigger className="w-[140px] h-[36px] rounded-md border px-3 text-sm">
+  <SelectValue>
+  <span className={`text-sm font-medium ${
+    orden.estado === "pendiente" ? "text-yellow-600" :
+    orden.estado === "en_proceso" ? "text-blue-600" :
+    orden.estado === "finalizado" ? "text-green-600" :
+    orden.estado === "entregado" ? "text-gray-500" :
+    "text-red-600"
+  }`}>
+    {traducirEstado(orden.estado)}
+  </span>
+</SelectValue>
+
+
+    </SelectTrigger>
+    <SelectContent>
+      {["pendiente", "en_proceso", "finalizado", "entregado", "activo"].map((estado) => (
+        <SelectItem key={estado} value={estado}>
+          <Badge variant={getEstadoBadgeVariant(estado)}>
+            {traducirEstado(estado)}
+          </Badge>
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</TableCell>
+
+
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant={getPrioridadVariant(orden.prioridad)}>
+                      {orden.prioridad.charAt(0).toUpperCase() + orden.prioridad.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">{orden.tecnico_asignado}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/dashboard/ordenes/${orden.id}`}>Ver Detalles</Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ) : (
-                ordenesFiltradas.map((orden) => (
-                  <TableRow key={orden.id}>
-                    <TableCell className="font-medium">{orden.id.slice(0, 8)}</TableCell>
-                    <TableCell>{orden.cliente}</TableCell>
-                    <TableCell className="hidden md:table-cell">{orden.dispositivo}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{orden.problema}</TableCell>
-                    <TableCell>
-                      <Badge variant={getEstadoVariant(orden.estado)}>{orden.estado}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Badge variant={getPrioridadVariant(orden.prioridad)}>
-                        {orden.prioridad.charAt(0).toUpperCase() + orden.prioridad.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">{orden.tecnico_asignado}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/ordenes/${orden.id}`}>Ver Detalles</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </CardContent>
