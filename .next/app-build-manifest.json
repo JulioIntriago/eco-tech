@@ -11,66 +11,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/layout.js"
     ],
-    "/dashboard/ordenes/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/loading.js"
-    ],
-    "/dashboard/ordenes/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/[id]/page.js"
-    ],
-    "/dashboard/ordenes/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/page.js"
-    ],
-    "/dashboard/ordenes/nueva/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/nueva/page.js"
-    ],
-    "/dashboard/ordenes/[id]/editar/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ordenes/[id]/editar/page.js"
-    ],
-    "/dashboard/proveedores/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/proveedores/loading.js"
-    ],
-    "/dashboard/proveedores/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/proveedores/page.js"
-    ],
-    "/dashboard/configuracion/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/configuracion/loading.js"
-    ],
-    "/dashboard/configuracion/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/configuracion/page.js"
-    ],
-    "/dashboard/notificaciones/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/notificaciones/loading.js"
-    ],
-    "/dashboard/notificaciones/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/notificaciones/page.js"
-    ],
-    "/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/page.js"
-    ],
     "/dashboard/inventario/loading": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -80,41 +20,6 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/inventario/page.js"
-    ],
-    "/dashboard/ventas/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ventas/loading.js"
-    ],
-    "/dashboard/ventas/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/ventas/page.js"
-    ],
-    "/dashboard/clientes/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/clientes/loading.js"
-    ],
-    "/dashboard/clientes/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/clientes/page.js"
-    ],
-    "/dashboard/empleados/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/empleados/loading.js"
-    ],
-    "/dashboard/empleados/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/empleados/page.js"
-    ],
-    "/dashboard/empleados/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/empleados/[id]/page.js"
     ]
   }
 }
