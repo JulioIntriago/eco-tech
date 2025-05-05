@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import { useSidebar } from "./sidebar-provider"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bell, Menu, Search, User } from "lucide-react"
+import { Bell, Menu, Search, User, Moon, Sun } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +24,13 @@ export function DashboardHeader() {
   const [userEmail, setUserEmail] = useState("")
   const [userId, setUserId] = useState("")
   const [notificaciones, setNotificaciones] = useState<any[]>([])
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -68,7 +75,7 @@ export function DashboardHeader() {
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            setNotificaciones((prev) => [payload.new, ...prev.slice(0, 4)]) // máx 5
+            setNotificaciones((prev) => [payload.new, ...prev.slice(0, 4)])
           }
         }
       )
@@ -85,6 +92,8 @@ export function DashboardHeader() {
   }
 
   const noLeidas = notificaciones.filter((n) => !n.leida).length
+
+  if (!mounted) return null
 
   return (
     <header className="flex items-center justify-between gap-4">
@@ -106,6 +115,19 @@ export function DashboardHeader() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )}
+          <span className="sr-only">Cambiar tema</span>
+        </Button>
 
         <Popover>
           <PopoverTrigger asChild>

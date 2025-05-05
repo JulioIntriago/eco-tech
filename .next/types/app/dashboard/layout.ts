@@ -1,4 +1,4 @@
-// File: C:\Users\julio\Downloads\eco-tech\app\dashboard\layout.tsx
+// File: C:\Users\julio\OneDrive\Escritorio\eco-tech\app\dashboard\layout.tsx
 import * as entry from '../../../../app/dashboard/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

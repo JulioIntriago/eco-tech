@@ -365,7 +365,6 @@ export default function NuevaOrdenPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-          <Label htmlFor="costo_estimado">Costo Estimado ($)</Label>
             <Input
               name="costo_estimado"
               type="number"

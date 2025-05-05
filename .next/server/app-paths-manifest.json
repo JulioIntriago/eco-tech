@@ -1,3 +1,7 @@
 {
-  "/dashboard/inventario/page": "app/dashboard/inventario/page.js"
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/ordenes/page": "app/dashboard/ordenes/page.js",
+  "/dashboard/configuracion/page": "app/dashboard/configuracion/page.js",
+  "/dashboard/ordenes/nueva/page": "app/dashboard/ordenes/nueva/page.js",
+  "/dashboard/notificaciones/page": "app/dashboard/notificaciones/page.js"
 }
